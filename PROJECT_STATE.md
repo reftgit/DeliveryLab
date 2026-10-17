@@ -4,12 +4,21 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
 
 ## Aşama ve mevcut hedef
 
-- Aşama: geliştirme protokolü kuruldu ve belge kontrolleri geçti; uygulama öncesi.
-- Mevcut hedef: ürün tanımını alarak sonraki uygulama görevini netleştirmek.
-- Henüz hiçbir uygulama implementasyonu yok. Kaynak kod, bağımlılık manifesti,
-  test paketi, build komutu veya CI/deploy yapılandırması bulunmuyor.
+- Aşama: Faz 1 yerel fizibilite prototipi uygulandı ve yerel kontroller geçti.
+- Mevcut hedef: iki gerçek kullanıcı gözlemiyle manuel saha doğrulamasına hazır
+  olmak. Canlı entegrasyon izin/kapsam engelleri nedeniyle kurulmadı.
+- React/TypeScript/Vite uygulaması, LocalStorage, JSON aktarımı ve otomatik
+  testler mevcut. Backend, CI/deploy, hesap bağlama veya sipariş/ödeme yok.
 
-## Başlangıç ve ilgili Git kayıtları
+| Kabul alanı | Durum | Kanıt / sınır |
+| --- | --- | --- |
+| LOCAL_APP | PASS | Temiz kurulum, build, localhost HTTP 200, masaüstü/dar ekran akışları |
+| LIVE_DISCOVERY | BLOCKED | İki sağlayıcıdan aynı adres için yetkili gerçek keşif yapılmadı |
+| LIVE_COMPARISON | BLOCKED | İki sağlayıcıdan karşılaştırılabilir canlı sepet alınmadı |
+| MANUAL_COMPARISON | PASS | Manuel giriş ve matematiksel akış sentetik QA girdileriyle geçti; iki gerçek gözlemle saha kontrolü NOT RUN |
+| ORDERING | NOT RUN | Kullanıcı talebiyle gerçek sipariş ve ödeme kapsam dışı |
+
+## Kurulum geçmişi ve ilgili Git kayıtları
 
 - Depo kökü: `DeliveryLab`; Git kurulumdan önce zaten başlatılmıştı.
 - Başlangıç dalı: `main`; başlangıç HEAD'i/commit'i yoktu (unborn branch).
@@ -31,37 +40,86 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
   durumunu `git log --oneline`, `git status --short --branch` ve upstream ile
   karşılaştır; henüz yapılmamış commit/push'u gerçekleşmiş sayma.
 
+Faz 1 başlangıcı: `78cf046f7b2f01e7d75a529be4e55c854acd833b`, `main`,
+`origin/main` ile 0/0 ayrışma; yalnız `.vscode/` izlenmiyordu. Önceki agentin
+devir hash'i gerçek Git ile eşleşti. `AGENTS.md` ve `CLAUDE.md` değişmedi.
+`.vscode/settings.json` başlangıç ve doğrulama SHA-256 değeri aynı:
+`3f3e7a04f09d43381ca8b655d8c5930ba900ee7d9fd82f4801f8bb007e9bdf54`.
+
 ## Mevcut içerik
 
 - `AGENTS.md`: başlangıç okuma sırası, kapsam ve doğrulama disiplini, kalıcı bilgi,
   otomatik commit, koşullu otomatik push, yasak işlemler ve Türkçe tek blok rapor.
 - `CLAUDE.md`: bağımsız `@AGENTS.md` importu ve asgari Claude Code giriş yönergesi.
 - `PROJECT_STATE.md`: gerçek durum, kanıtlar, eksikler ve sonraki iş.
-- `PROJECT_CONTEXT.md`: onaylanan süreç kararları ve henüz verilmemiş ürün kararları.
+- `PROJECT_CONTEXT.md`: onaylanan süreç, ürün kapsamı, teknik gerekçeler ve ertelemeler.
+- `src/App.tsx`, `src/components/`, `src/styles.css`: Türkçe responsive arayüz;
+  adres/isteğe bağlı konum, hedef sepet, manuel gözlem formu, arama/platform
+  filtresi, birleşik şube listesi, karşılaştırma ve resmî platform bağlantıları.
+- `src/domain/`: kuruş hesabı, indirim/minimum/eksik ücret/toplam kontrolü,
+  şube onayı ve geri alma, adres/sepet revizyonları, 30 dakika eskime,
+  kaynak ayrımı, yerel adapterler ve bir sağlayıcı hatasında diğerini koruma.
+- Başlangıç boş; DEMO yalnız açık eylemle açılır, sentetiktir, bellekte ayrı
+  tutulur ve manuel JSON'a girmez. Çalışan LIVE adapter yok.
+- Sürümlü katı JSON doğrulaması; 1 MB/500 gözlem sınırı; değiştirmeden önce
+  kullanıcı kontrolü; hatalı dosyada eski kayıtların korunması. Bozuk/dolu
+  LocalStorage görünür uyarı verir, bozuk içerik sessizce ezilmez.
+- `package.json`, lockfile ve Vite/TypeScript/Playwright ayarları: yerel çalıştırma,
+  build ve testler. `.gitignore` runtime çıktıları ve özel dışa aktarımı dışlar.
+- `README.md`: kurulum/kullanım/test komutları ve kayıt sınırlamaları.
+- `docs/FEASIBILITY.md`: tarihli, kaynaklı platform erişim değerlendirmesi.
 
-## Doğrulama kanıtları
+## Faz 1 doğrulama kanıtları
 
-- PASS — `git rev-parse --show-toplevel`, `git status --short --branch`,
-  `git ls-files` ve gizli dosyalar dahil dosya listesi: depo ve boş başlangıç
-  durumu incelendi; uygulama dosyası yoktu.
-- BEKLENEN BAŞARISIZLIK — başlangıçta `git rev-parse --verify HEAD` ve `git log`
-  mevcut commit olmadığı için sonuç veremedi; bozuk geçmiş kanıtı değil.
-- ORTAM SINIRI — ilk sandbox içi `git ls-remote` denemesinde
-  `Could not resolve host: github.com`; yetkili tekrar denemesi PASS.
-- PASS — dört dosyanın içerikleri okundu: Claude importu kod bloğu dışında,
-  iki proje belgesini okuma zorunluluğu mevcut, otomatik commit/koşullu push ve
-  yıkıcı işlem sınırları tanımlı; rapor şablonunun 14 bölümü eksiksiz.
-- PASS — durum ve gelecek planları ayrı; mevcut yararlı belge bulunmadığından
-  üzerine yazılan yönerge yok. Uygulama kodu oluşturulmadı/değiştirilmedi.
-- PASS — `git diff --cached --check`, `git diff --cached --name-status` ve
-  `git ls-files --unmerged`: whitespace hatası/çatışma yok; stage edilenler
-  yalnızca istenen dört Markdown belgesi. İçerik incelemesinde sır veya istemeden
-  eklenmiş özel dosya görülmedi; `.vscode/settings.json` stage edilmedi.
+Ortam: macOS, Node.js 26.8.1, npm 11.19.0; Vitest 5.0.5,
+Playwright 1.64.1 ve kurulu Google Chrome'un geçici test profilleri.
+
+- PASS — `npm install --no-fund`, ardından `npm ci --no-fund`: lockfile ile temiz
+  kurulum tamamlandı; npm denetimi 0 güvenlik açığı bildirdi. Opsiyonel `fsevents`
+  install-script onayı uyarısı görüldü; güvenlik ayarı değiştirilmedi.
+- PASS — `npm test`: **66/66**. Para, indirim/minimum, eksik ücret, şube kimliği,
+  kaynak ayrımı, eski/gelecek teklif, adres/sepet revizyonu, sağlayıcı hata
+  izolasyonu, URL ve JSON/tarih/boyut doğrulaması.
+- PASS — `npm run build`: TypeScript kontrolü ve Vite build. Son ölçüm:
+  JS 256.61 kB (gzip 79.95 kB), CSS 17.08 kB (gzip 4.51 kB).
+- PASS — `npm run test:e2e`: **18/18**, 12.1 saniye. 9 akış × masaüstü
+  1365×1000 ve dar ekran 375×812. Boş başlangıç/demo, arama/filtre, manuel
+  karşılaştırma, eşleştirme/geri alma, yeniden açmada kalıcılık, adres değişimi,
+  eksik ücret, JSON aktarımı, bozuk depolama, konum reddi, otomatik dış HTTP
+  isteği olmaması, açık ekranda eskime ve adres kaydında kaydedilmemiş sepet
+  taslağının korunması doğrulandı.
+- PASS — `npm run preview`: `http://127.0.0.1:4173/` HTTP 200. Derlenmiş uygulama
+  ayrı Chrome oturumunda açıldı; boş başlangıç ve demo karşılaştırması çalıştı;
+  iki ekran boyutunda screenshot incelendi, yatay taşma ve pageerror görülmedi.
+- PASS — `git diff --check`; kullanıcı `.vscode/settings.json` hash'i korundu.
+- İlk build CSS modül tip bildirimi eksikliğinden başarısızdı; `vite/client`
+  bildirimi eklendi. İlk E2E turunda select/status seçicileri, sonraki turda saat
+  simülasyonunun kurulum sırası düzeltildi. İncelemede adres kaydının sepet
+  taslağını sıfırlayabilmesi giderildi ve regresyon testi eklendi. Son tam test
+  turunda hata kalmadı.
+
+Kurulumun tarihsel belge doğrulamaları `42a88c9` / `78cf046` commitlerindedir;
+uygulamanın olmadığına ilişkin eski kayıtlar yalnız o aşama için geçerlidir.
+
+## Canlı erişim bulguları
+
+İnternet üzerinden resmî belgeler okunabildi. Yemeksepeti'nin verilen API'si
+işletme katalog/gelen sipariş yönetimi için; genel tüketici keşfi kanıtı değil.
+Uber Consumer Delivery erişimi başvuru/izin gerektiriyor; rakip verileriyle
+birleştirme için yazılı izin ve Türkiye API kapsamı doğrulanmadı. Yetki veya test
+kimliği bulunmadığından tüketici sorgusu yapılmadı. Detaylar ve kaynaklar
+[FEASIBILITY.md](docs/FEASIBILITY.md) içinde. Ücretli hizmet veya alternatif
+sağlayıcı kullanılmadı.
 
 ## Doğrulanmayan davranışlar
 
-- NOT RUN — uygulama testleri, build, lint, cihaz ve entegrasyon testleri:
-  uygulama ve çalıştırılacak araç yapılandırması henüz yok.
+- NOT RUN — kullanıcıdan sağlanan iki gerçek platform gözlemiyle saha kontrolü;
+  testte MANUAL etiketli veriler de açıkça sentetik girdilerdir.
+- BLOCKED — izinli canlı keşif, canlı fiyat/ücret teklifi, Türkiye tüketici API kapsamı.
+- NOT RUN — gerçek mobil cihaz/Safari/Firefox, gerçek kullanıcı GPS'i ve OS izin
+  diyaloğu. Konum reddi tarayıcı testi kontrollü bir mock kullanır.
+- NOT RUN — gerçek sipariş/ödeme, hesap bağlama, internet yayını; kapsam dışı.
+- Ayrı lint komutu eklenmedi; TypeScript kontrolü build içinde çalıştırıldı.
 - NOT RUN — yeni Codex/Claude Code oturumunun bu dosyaları otomatik yüklemesi.
   Dosya/import incelemesi, gerçek agent yüklemesinin kanıtı değildir.
 - Ortamda `codex` ve `claude` çalıştırılabilir dosyaları bulundu; bu bulgu oturum
@@ -69,10 +127,14 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
 
 ## Hatalar, riskler ve dış engeller
 
-- Uygulama olmadığı için raporlanabilecek doğrulanmış uygulama hatası veya
-  regresyon yok; bu ifade uygulama testlerinin geçtiği anlamına gelmez.
-- Ürün kapsamı, kullanıcı kitlesi, hedef platform ve teknik mimari belirlenmedi.
-  Bunları depo adından çıkarmak yanlış uygulamaya yol açabilir.
+- Son kontrollerde bilinen engelleyici uygulama hatası yok; bu tüm cihazlarda
+  hatasız çalışma garantisi değildir.
+- Canlı veri/yan yana gösterim yetkisi yok. Manuel beyanlar sağlayıcı doğrulaması
+  veya bir adrese teslimat garantisi değildir.
+- Farklı platform ürün adları otomatik eşdeğer sayılmaz; şube eşleştirmesi kullanıcı
+  beyanıdır. Karmaşık kampanyalar ve ürün toplamını aşan indirimler desteklenmez.
+- LocalStorage tarayıcıya/origin'e bağlıdır, şifreli kasa veya yedek değildir;
+  çok sekmeli eşzamanlı düzenleme için çatışma çözümü yok. JSON kişisel bağlam içerebilir.
 - Git ağ işlemleri bu ortamda ek izin gerektirebilir; yerel kurallar ortam
   kısıtlarını aşmaz. Remote/upstream ayarı eksik değil.
 - Bağımsız agent yükleme doğrulaması açık; diğer agentin talimatları okuduğu
@@ -80,11 +142,12 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
 
 ## Manuel işler, öncelik ve önerilen sonraki görev
 
-1. Kullanıcı ürün tanımını ve ilk sürüm kapsamını sağlamalı.
-2. Bir sonraki Codex/Claude Code oturumunda kullanılan yönerge kaynakları
-   doğrulanmalı; mevcut görevde bu doğrulama yapılmış sayılmamalı.
+Önerilen tek sonraki görev: aynı adres, fiziksel şube ve aynı sepet için kullanıcının
+iki platformda gördüğü gerçek bilgileri MANUAL olarak kaydedip kontrollü saha
+doğrulaması yapmak. Kabul ölçütleri: fiyat/ücret/indirim/minimum koşulları ve zaman
+kaydedilmiş; kaynak toplamları hesapla eşleşmiş; farklı veya eksik sepetler kazanan
+üretmemiş; kişisel kayıt Git'e girmemiş; gerçek sipariş verilmemiş.
 
-Önerilen tek sonraki görev: ürün gereksinimlerini ve ilk geliştirme dilimini
-netleştirip `PROJECT_CONTEXT.md` içine kaydetmek. Kabul ölçütleri: hedef kullanıcı,
-platform, temel kullanıcı akışları, ilk sürüm kapsamı, kapsam dışı işler ve ilk
-uygulama görevinin ölçülebilir kabul kriterleri belli; açık kararlar açıkça işaretli.
+Canlı entegrasyon ayrıca sağlayıcı yetkileri ve açık karşılaştırma izni gerektirir.
+Kurulum: `npm ci`, `npm run dev`, `http://127.0.0.1:5173/`. Görev sonrası QA
+sunucuları kapatılır; sonraki oturum bu komutla başlatır. Faz 2'ye geçilmez.
