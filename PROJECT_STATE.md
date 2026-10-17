@@ -46,6 +46,12 @@ devir hash'i gerçek Git ile eşleşti. `AGENTS.md` ve `CLAUDE.md` değişmedi.
 `.vscode/settings.json` başlangıç ve doğrulama SHA-256 değeri aynı:
 `3f3e7a04f09d43381ca8b655d8c5930ba900ee7d9fd82f4801f8bb007e9bdf54`.
 
+Faz 1 uygulama commit'i: `63ac8ea856e7e114423d8eb68667fa06b3122fcf`
+(`feat: add local manual delivery comparison prototype`). Uygulama, testler,
+erişim raporu ve ilgili proje belgeleri aynı doğrulanmış birimde yer alır.
+Sonraki belge commit'i bu referansı kaydeder; güncel HEAD/push durumunu Git'ten
+kontrol edin. `.vscode/`, test çıktıları ve kişisel kayıtlar commit'e alınmadı.
+
 ## Mevcut içerik
 
 - `AGENTS.md`: başlangıç okuma sırası, kapsam ve doğrulama disiplini, kalıcı bilgi,
