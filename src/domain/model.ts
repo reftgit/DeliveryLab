@@ -80,6 +80,20 @@ export const FRESHNESS_MS = 30 * 60 * 1000;
 export const MAX_MONEY = 100_000_000;
 export const normalize = (value: string) =>
   value.trim().normalize("NFC").toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
+export function sameAddress(a: DeliveryContext, b: DeliveryContext): boolean {
+  return (
+    normalize(a.label) === normalize(b.label) &&
+    a.latitude === b.latitude &&
+    a.longitude === b.longitude
+  );
+}
+export function sameDeliveryContext(
+  a: DeliveryContext,
+  b: DeliveryContext,
+): boolean {
+  // A -> B -> A creates a new revision; never revive a previous observation.
+  return a.id === b.id && sameAddress(a, b);
+}
 export function branchKey(o: Observation): string {
   return JSON.stringify([
     o.source,

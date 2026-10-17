@@ -79,9 +79,24 @@ Uygulama tercihleri (ürün gereksinimi değil, Faz 1 uygulama politikası):
 
 - Para kuruş tam sayısıdır. Türkçe virgül/nokta ondalık kabul edilir; binlik
   ayırıcı, negatif ve kesirli kuruş reddedilir.
-- Hedef adres/sepet her kayıtta yeni kimlik alır; eski bağlama geri dönmek önceki
-  teklifi canlandırmaz. Gözlemler 30 dakika sonra eski sayılır; bu süre platform
-  garantisi değil muhafazakâr laboratuvar eşiğidir.
+- Faz 1B kararı: hedef adres/sepet yalnız anlamlı değişimde yeni kimlik alır.
+  Adreste etiketin NFC/büyük-küçük harf/boşluk biçimi farkları yok sayılır;
+  koordinatlar tam değerleriyle karşılaştırılır (yuvarlama/tolerans yok).
+  Koordinat ekleme/kaldırma da değişimdir. Sepette mevcut kanonik ürün,
+  porsiyon, seçenek ve toplam adet karşılaştırması kullanılır; satır sırası ve
+  eşdeğer ürünlerin ayrı/birleşik satırlara yazılması kimliği değiştirmez.
+- Kimlik yalnız mevcut bağlamla karşılaştırılarak korunur. Adres/sepet A → B → A
+  değişiminde eski kimlik geri getirilmez. Gözlem adresi hem kimlik hem içerikle
+  denetlenir; içe aktarımda aynı kimlikle farklı içerik de güncel sayılmaz.
+- Keşif ve seçilebilir karşılaştırma yalnız mevcut adres bağlamının kayıtlarını
+  kullanır. Diğer adres gözlemleri aynı JSON/LocalStorage içinde silinmeden
+  tutulur; ayrı, salt okunur “Geçmiş adres gözlemleri” bölümünden incelenir.
+  Kaynak izolasyonu ve kullanıcı şube eşleştirmeleri korunur. Şube onayı fiziksel
+  şube içindir; başka adreste teslimat veya fiyat geçerliliği onayı değildir.
+- Adres geçmişi fiyat eskimesinden ayrıdır: aynı adresin 30 dakikayı geçen veya
+  eski sepeti kullanan gözlemi keşifte kalır, karşılaştırma nedenini gösterir ve
+  kazanan olamaz. Değişikliksiz kaydetmek gözlem zamanını yenilemez. 30 dakika
+  sağlayıcı garantisi değil muhafazakâr laboratuvar eşiğidir.
 - Şube kimliği kaynak/platform/restoran/şube bileşimidir. Platformlar arası
   isimden otomatik eşleştirme yok; açık kullanıcı onayı gerekir.
 - Minimum koşulun indirim öncesi/sonrası temeli ayrı tutulur. İndirim uygunluğu
@@ -96,6 +111,8 @@ Uygulama tercihleri (ürün gereksinimi değil, Faz 1 uygulama politikası):
 - Canlı keşif ve canlı fiyat karşılaştırması hedefi izin ve Türkiye API kapsamı
   doğrulaması gerektirir; tamamlanmış entegrasyon değildir.
 - Gerçek iki platform gözlemiyle saha doğrulaması önerilen sonraki iştir.
+  [Pilot talimatı ve boş şablon](docs/PILOT_TEST.md) kullanılacak; MANUAL FIELD
+  CHECK başarısı AUTOMATED ACCESS FEASIBILITY sonucunu değiştirmeyecek.
 - Ürünleştirme, ticari model, bütçe ve takvim henüz onaylanmış değildir.
 
 ## Ertelenen fikirler ve reddedilen seçenekler

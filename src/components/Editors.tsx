@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { BasketItem, DeliveryContext, Workspace } from "../domain/model";
 import { validateContext, validateItem } from "../domain/storage";
+import { saveAddressContext, saveBasketContext } from "../domain/context";
 
 export const blankItem = (): BasketItem => ({
   name: "",
@@ -142,16 +143,20 @@ export function ContextEditor({
   function saveAddress(e: FormEvent) {
     e.preventDefault();
     try {
-      const next: DeliveryContext = validateContext({
+      const checked: DeliveryContext = validateContext({
         ...context,
-        id: crypto.randomUUID(),
         latitude: latitude.trim() ? Number(latitude) : null,
         longitude: longitude.trim() ? Number(longitude) : null,
       });
-      if (!next.label.trim()) throw new Error("Adres etiketi gerekli.");
-      if (!onSave({ ...workspace, context: next })) throw new Error("Adres kaydedilemedi; üstteki uyarıyı kontrol edin.");
+      if (!checked.label.trim()) throw new Error("Adres etiketi gerekli.");
+      const next = saveAddressContext(workspace.context, checked);
+      if (!onSave({ ...workspace, context: next }))
+        throw new Error("Adres kaydedilemedi; üstteki uyarıyı kontrol edin.");
+      setContext(next);
       setMessage(
-        "Adres kaydedildi. Önceki adres gözlemleri yeniden kullanılmaz.",
+        next.id === workspace.context.id
+          ? "Adres değişmedi; mevcut gözlemler korundu."
+          : "Adres kaydedildi. Önceki adres gözlemleri geçmiş alanında korundu.",
       );
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Adres kaydedilemedi.");
@@ -254,13 +259,19 @@ export function ContextEditor({
             try {
               if (!items.length) throw new Error("En az bir ürün ekleyin.");
               const checked = items.map((i) => validateItem(i));
+              const basket = saveBasketContext(workspace.basket, checked);
               const saved = onSave({
                 ...workspace,
-                basket: { id: crypto.randomUUID(), items: checked },
+                basket,
               });
-              if (!saved) throw new Error("Sepet kaydedilemedi; üstteki uyarıyı kontrol edin.");
+              if (!saved)
+                throw new Error(
+                  "Sepet kaydedilemedi; üstteki uyarıyı kontrol edin.",
+                );
               setMessage(
-                "Sepet kaydedildi. Önceki sepet gözlemleri geçersizleşti.",
+                basket.id === workspace.basket.id
+                  ? "Sepet değişmedi; mevcut gözlemler korundu."
+                  : "Sepet kaydedildi. Önceki sepet gözlemleri geçersizleşti.",
               );
             } catch (e) {
               setMessage(

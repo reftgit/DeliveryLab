@@ -4,7 +4,8 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
 
 ## Aşama ve mevcut hedef
 
-- Aşama: Faz 1 yerel fizibilite prototipi uygulandı ve yerel kontroller geçti.
+- Aşama: Faz 1B adres/sepet doğruluğu düzeltmeleri ve saha denemesi hazırlığı
+  uygulandı; yerel kontroller geçti. Gerçek saha denemesi henüz yapılmadı.
 - Mevcut hedef: iki gerçek kullanıcı gözlemiyle manuel saha doğrulamasına hazır
   olmak. Canlı entegrasyon izin/kapsam engelleri nedeniyle kurulmadı.
 - React/TypeScript/Vite uygulaması, LocalStorage, JSON aktarımı ve otomatik
@@ -17,6 +18,8 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
 | LIVE_COMPARISON | BLOCKED | İki sağlayıcıdan karşılaştırılabilir canlı sepet alınmadı |
 | MANUAL_COMPARISON | PASS | Manuel giriş ve matematiksel akış sentetik QA girdileriyle geçti; iki gerçek gözlemle saha kontrolü NOT RUN |
 | ORDERING | NOT RUN | Kullanıcı talebiyle gerçek sipariş ve ödeme kapsam dışı |
+| MANUAL FIELD CHECK | NOT RUN | Gerçek kullanıcı gözlemi sunulmadı; pilot şablonu boş |
+| AUTOMATED ACCESS FEASIBILITY | BLOCKED | Faz 1 izin/kapsam engelleri çözülmedi; manuel testler bunu değiştirmez |
 
 ## Kurulum geçmişi ve ilgili Git kayıtları
 
@@ -52,6 +55,11 @@ erişim raporu ve ilgili proje belgeleri aynı doğrulanmış birimde yer alır.
 Sonraki belge commit'i bu referansı kaydeder; güncel HEAD/push durumunu Git'ten
 kontrol edin. `.vscode/`, test çıktıları ve kişisel kayıtlar commit'e alınmadı.
 
+Faz 1B başlangıcı: `d88a0feaa77a4e3c4e6483acb8c24849ff6bf410`, `main`.
+`git fetch origin` sonrası HEAD, `origin/main` ve upstream aynıydı (0/0).
+Yalnız `.vscode/` izlenmiyordu; başlangıç SHA-256 değeri yukarıdakiyle aynıydı.
+Bu görevde `AGENTS.md`, `CLAUDE.md`, bağımlılıklar ve canlı erişim raporu korunur.
+
 ## Mevcut içerik
 
 - `AGENTS.md`: başlangıç okuma sırası, kapsam ve doğrulama disiplini, kalıcı bilgi,
@@ -74,6 +82,60 @@ kontrol edin. `.vscode/`, test çıktıları ve kişisel kayıtlar commit'e alı
   build ve testler. `.gitignore` runtime çıktıları ve özel dışa aktarımı dışlar.
 - `README.md`: kurulum/kullanım/test komutları ve kayıt sınırlamaları.
 - `docs/FEASIBILITY.md`: tarihli, kaynaklı platform erişim değerlendirmesi.
+- `docs/PILOT_TEST.md`: gerçek gözlemler için uygulanabilir adımlar, boş kontrol
+  şablonu; manuel saha kontrolü ile otomatik erişim fizibilitesinin ayrı sonuçları.
+
+## Faz 1B düzeltmeleri ve doğrulama kanıtları
+
+Başlangıç kodunda keşif tüm adres kayıtlarını grupluyor, adres/sepet her kayıtta
+yeni UUID alıyordu. Bu iki davranış düzeltildi:
+
+- `model.ts` içindeki ortak adres/bağlam eşitliği hem `evaluateQuote` hem
+  `context.ts` adres ayrımında kullanılır: kimlik ve anlamlı alanlar birlikte
+  eşleşir. Adres etiketi biçim farkları normalize edilir; koordinat farkı için
+  tolerans uygulanmaz. Gerçek değişimde yeni kimlik, değişiklik yoksa eski kimlik.
+- Sepet kimliği mevcut `basketSignature` ile korunur: ürün/porsiyon/seçenek/adet
+  aynıysa satır sırası ve eşdeğer adet gruplaması geçersizleşme yaratmaz. Gerçek
+  değişim ve A → B → A dönüşü yeni kimlik oluşturur, eski teklif canlanmaz.
+- Ana keşif ve karşılaştırma seçimi yalnız mevcut adresin gözlemlerini alır.
+  Adres değişince seçim temizlenir; eski kayıtlar ayrı, salt okunur geçmişte
+  kaynak/adres/koordinat/zaman/ürün/ücret/indirim ayrıntılarıyla görünür. Geçmişten
+  kazanan üretilemez. Tek platformlu şube ve şube onayı/geri alma korunur.
+- Aynı adresin süresi geçen veya eski sepete ait gözlemi keşifte kalır; geçersizlik
+  nedenleri ve kazanan engeli korunur. 30 dakika sınırı ve gözlem zamanı değişmedi.
+- JSON sürüm 1 ve LocalStorage anahtarı değişmedi; veri göçü veya kayıt silme yok.
+  MANUAL geçmişi dışa aktarılır; DEMO yalnız ayrı bellekte kalır.
+
+Ortam: macOS, Node.js 26.8.1, npm 11.19.0; Vitest 5.0.5,
+Playwright 1.64.1, kurulu Google Chrome'un ayrı geçici test profilleri.
+
+- PASS — `npm ci`: lockfile ile temiz kurulum; 0 güvenlik açığı. Opsiyonel
+  `fsevents` install-script onayı uyarısı görüldü; güvenlik ayarı değiştirilmedi.
+- PASS — `npm test`: **83/83** (önceki 66 + 17 yeni bağlam/geçmiş testi).
+  Aynı kaydı koruma, etiket/iki koordinat değişimi ve ekleme/kaldırma, A → B → A,
+  aynı kimlikle farklı içerik, adres geçmişi/eskime ayrımı, şube gruplama,
+  kayıpsız JSON, sepet sırası/adet gruplama ve dört ürün alanı değişimi doğrulandı.
+- PASS — `npm run build`: TypeScript + Vite; JS 260.32 kB (gzip 80.65 kB),
+  CSS 17.31 kB (gzip 4.56 kB).
+- PASS — `npm run test:e2e`: **32/32**, 23.8 saniye; 16 senaryo × masaüstü
+  1365×1000 ve dar ekran 375×812. Önceki dokuz akış korunup yeni davranışlara
+  göre genişletildi; yedi akış eklendi. Aktif/geçmiş ayrımı, kalıcılık, A → B → A,
+  aynı kaydın kimliği/kazananı koruması, koordinat ve dört sepet alanı değişimi,
+  iki ürün sırası, MANUAL/DEMO geçmiş izolasyonu, tek platformlu kayıt doğrulandı.
+- PASS — E2E JSON turunda 2 geçmiş + 1 mevcut gözlem ve şube eşleştirmesi,
+  tarayıcıdaki test alanı boşaltıldıktan sonra dışa aktarılan dosyadan eksiksiz
+  geri alındı; tüm nesne eşitliği kontrol edildi. Bozuk dosya mevcut veriyi korudu.
+- PASS — E2E masaüstü ve dar ekran geçmiş ekran görüntüleri incelendi; yerleşim
+  okunabilir, genişlik taşması yok. Görüntüler `test-results/` altında, Git dışında.
+  Bu gerçek mobil cihaz testi değildir. Tüm girdiler sentetik QA verisidir.
+- PASS — `git diff --check`, 10 yerel belge bağlantısının hedef kontrolü;
+  `.vscode/settings.json` SHA-256 değeri başlangıçla aynı. Agent protokolü,
+  `docs/FEASIBILITY.md`, `package.json` ve lockfile değişmedi. Test sunucuları
+  kapandı; 5173 ve 4173 portlarında dinleyici kalmadı.
+
+Faz 1B testlerinde başarısız sonuç oluşmadı. Canlı API veya yeni platform
+araştırması/çağrısı yapılmadı; aşağıdaki Faz 1 erişim bulguları yeniden
+doğrulanmış yeni araştırma olarak sunulmuyor.
 
 ## Faz 1 doğrulama kanıtları
 
@@ -137,6 +199,10 @@ sağlayıcı kullanılmadı.
   hatasız çalışma garantisi değildir.
 - Canlı veri/yan yana gösterim yetkisi yok. Manuel beyanlar sağlayıcı doğrulaması
   veya bir adrese teslimat garantisi değildir.
+- Adres doğruluğu girilen etiket/koordinatlarla sınırlıdır; kullanıcı platformda
+  gerçek adresi değiştirip yerel alanları değiştirmezse uygulama bunu bilemez.
+  Önceki Faz 1'in ürettiği farklı revizyonlar otomatik birleştirilmez; eski
+  teklifleri yeniden güncel saymak yerine geçmişte korumak bilinçli tercihtir.
 - Farklı platform ürün adları otomatik eşdeğer sayılmaz; şube eşleştirmesi kullanıcı
   beyanıdır. Karmaşık kampanyalar ve ürün toplamını aşan indirimler desteklenmez.
 - LocalStorage tarayıcıya/origin'e bağlıdır, şifreli kasa veya yedek değildir;
@@ -148,11 +214,14 @@ sağlayıcı kullanılmadı.
 
 ## Manuel işler, öncelik ve önerilen sonraki görev
 
-Önerilen tek sonraki görev: aynı adres, fiziksel şube ve aynı sepet için kullanıcının
-iki platformda gördüğü gerçek bilgileri MANUAL olarak kaydedip kontrollü saha
-doğrulaması yapmak. Kabul ölçütleri: fiyat/ücret/indirim/minimum koşulları ve zaman
+Önerilen tek sonraki görev: [PILOT_TEST.md](docs/PILOT_TEST.md) adımlarıyla aynı
+adres, fiziksel şube ve aynı sepet için kullanıcının iki platformda gördüğü gerçek
+bilgileri MANUAL olarak kaydedip kontrollü saha doğrulaması yapmak. Kabul ölçütleri:
+fiyat/ücret/indirim/minimum koşulları ve zaman
 kaydedilmiş; kaynak toplamları hesapla eşleşmiş; farklı veya eksik sepetler kazanan
-üretmemiş; kişisel kayıt Git'e girmemiş; gerçek sipariş verilmemiş.
+üretmemiş; adres geçmişi ve JSON kayıtları korunmuş; kişisel kayıt Git'e girmemiş;
+gerçek sipariş verilmemiş. Sonuç MANUAL FIELD CHECK olarak kaydedilir;
+AUTOMATED ACCESS FEASIBILITY kendiliğinden PASS olmaz.
 
 Canlı entegrasyon ayrıca sağlayıcı yetkileri ve açık karşılaştırma izni gerektirir.
 Kurulum: `npm ci`, `npm run dev`, `http://127.0.0.1:5173/`. Görev sonrası QA

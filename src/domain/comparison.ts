@@ -1,4 +1,10 @@
-import { FRESHNESS_MS, MAX_MONEY, branchKey, normalize } from "./model";
+import {
+  FRESHNESS_MS,
+  MAX_MONEY,
+  branchKey,
+  normalize,
+  sameDeliveryContext,
+} from "./model";
 import type {
   Basket,
   BasketItem,
@@ -129,12 +135,7 @@ export function evaluateQuote(
     issues.push("Minimum sepet tutarı karşılanmıyor.");
   if (o.observedTotal !== null && total !== null && o.observedTotal !== total)
     issues.push("Görülen toplam ile hesaplanan toplam uyuşmuyor.");
-  if (
-    o.context.id !== context.id ||
-    o.context.label !== context.label ||
-    o.context.latitude !== context.latitude ||
-    o.context.longitude !== context.longitude
-  )
+  if (!sameDeliveryContext(o.context, context))
     issues.push("Adres değişti; gözlemi yenileyin.");
   if (
     o.basketId !== basket.id ||

@@ -3,15 +3,18 @@ import type { ChangeEvent } from "react";
 import { ContextEditor } from "./components/Editors";
 import { ObservationForm } from "./components/ObservationForm";
 import { Comparison } from "./components/Comparison";
+import { ObservationHistory } from "./components/ObservationHistory";
 import { collectObservations, localAdapters } from "./domain/adapters";
 import { evaluateQuote, groupRestaurants, money } from "./domain/comparison";
 import { demoWorkspace } from "./domain/demo";
+import { partitionObservations } from "./domain/context";
 import {
   branchKey,
   emptyWorkspace,
   normalize,
   PLATFORMS,
   PROVIDERS,
+  sameDeliveryContext,
 } from "./domain/model";
 import type { Observation, Platform, Workspace } from "./domain/model";
 import {
@@ -70,9 +73,13 @@ export default function App() {
   const observations = loaded.observations.filter(
     (o) => o.source === (demo ? "DEMO" : "MANUAL"),
   );
+  const { current, history } = partitionObservations(
+    observations,
+    workspace.context,
+  );
   const groups = useMemo(
-    () => groupRestaurants(observations, workspace.matches),
-    [observations, workspace.matches],
+    () => groupRestaurants(current, workspace.matches),
+    [current, workspace.matches],
   );
   const visible = groups.filter((group) =>
     group.some(
@@ -82,11 +89,13 @@ export default function App() {
     ),
   );
   const selectedObservations = selected.flatMap((id) =>
-    observations.filter((o) => o.id === id),
+    current.filter((o) => o.id === id),
   );
   function save(value: Workspace) {
     try {
       const valid = validateWorkspace(value, demo ? ["DEMO"] : ["MANUAL"]);
+      if (!sameDeliveryContext(valid.context, workspace.context))
+        setSelected([]);
       if (demo) setDemo(valid);
       else {
         const encoded = exportWorkspace(valid);
@@ -277,7 +286,7 @@ export default function App() {
                   if (save(pendingImport)) {
                     setPendingImport(null);
                     setSelected([]);
-                    setEditorVersion(v => v + 1);
+                    setEditorVersion((v) => v + 1);
                     setNotice("Manuel kayıtlar içe aktarıldı.");
                   }
                 }}
@@ -301,7 +310,7 @@ export default function App() {
         <section className="discovery" aria-labelledby="discovery-heading">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">TÜM GÖZLENEN ŞUBELER</p>
+              <p className="eyebrow">MEVCUT ADRESTE GÖZLENEN ŞUBELER</p>
               <h2 id="discovery-heading">
                 Restoran keşfi <span className="count">{groups.length}</span>
               </h2>
@@ -317,6 +326,11 @@ export default function App() {
               ＋ Gözlem ekle
             </button>
           </div>
+          <p className="muted">
+            {workspace.context.label || "Henüz adres belirlenmedi"} · Yalnızca
+            bu adres bağlamındaki kayıtlar. Teslimat uygunluğu kullanıcı
+            beyanıdır.
+          </p>
           <div className="filterbar">
             <label className="search">
               <span aria-hidden="true">⌕</span>
@@ -363,14 +377,18 @@ export default function App() {
                 ＋
               </div>
               <h3>
-                {observations.length
+                {current.length
                   ? "Aramanıza uyan kayıt bulunamadı."
-                  : "İlk gözleminizle başlayın."}
+                  : history.length
+                    ? "Bu adres için henüz gözlem yok."
+                    : "İlk gözleminizle başlayın."}
               </h3>
               <p>
-                {observations.length
+                {current.length
                   ? "Aramayı veya platform filtresini değiştirin."
-                  : "Önce adresinizi ve karşılaştıracağınız sepeti kaydedin. Ardından platformlarda gördüğünüz bilgileri ekleyin."}
+                  : history.length
+                    ? "Önceki adres kayıtları geçmiş alanında korunuyor. Bu adres için platformları yeniden kontrol edip gözlem ekleyin."
+                    : "Önce adresinizi ve karşılaştıracağınız sepeti kaydedin. Ardından platformlarda gördüğünüz bilgileri ekleyin."}
               </p>
               {!observations.length && (
                 <button
@@ -563,6 +581,7 @@ export default function App() {
             })
           }
         />
+        <ObservationHistory observations={history} />
         <section className="data-tools panel">
           <div>
             <h2>Kayıtlarınız, sizin cihazınızda.</h2>

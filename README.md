@@ -4,6 +4,9 @@ Türkiye'de iki yemek platformunda görülen sepetleri yerelde karşılaştıran
 fizibilite prototipi. **Canlı sağlayıcı entegrasyonu yoktur.** Yemeksepeti ve
 Uber Eats Trendyol Go tek arayüzde kullanıcı gözlemleriyle karşılaştırılır.
 Erişim kanıtları ve engeller: [docs/FEASIBILITY.md](docs/FEASIBILITY.md).
+Gerçek kullanıcı gözlemleriyle deneme adımları ve boş kontrol şablonu:
+[docs/PILOT_TEST.md](docs/PILOT_TEST.md). Saha kontrolü henüz yapılmadı (NOT RUN);
+manuel kontrolün başarısı otomatik platform erişimini doğrulamaz.
 
 ## Yerel kurulum
 
@@ -68,9 +71,16 @@ karışmaz, kalıcı kaydedilmez ve canlı erişim hatasında otomatik açılmaz
   Koşul olmadığını biliyorsanız minimum tutarı 0 girin.
 - Kaynakta görülen nihai toplam isteğe bağlıdır; girilmişse hesapla tam kuruş
   eşleşmesi gerekir. Bilinmeyen ücret bu toplamla örtülü olarak tamamlanmaz.
-- Adres veya hedef sepet yeniden kaydedildiğinde yeni revizyon oluşur; eski
-  gözlemler tarihçe olarak kalır ancak kazanan hesabına alınmaz. Eski gözlemi
-  değiştirmek yerine platformu yeniden kontrol edip yeni gözlem ekleyin.
+- Aynı adres veya aynı içerikteki sepet yeniden kaydedilince kimlik korunur;
+  gözlem zamanı ve 30 dakika sınırı değişmez. Adres etiketinde büyük/küçük harf,
+  Unicode ve boşluk biçimi farkları yok sayılır; koordinatlar tam değerleriyle
+  karşılaştırılır. Sepette satır sırası önemsizdir; aynı ürün satırlarının adetleri
+  toplanır, ürün/porsiyon/seçenek içerikleri ve toplam adet eşleşmelidir.
+- Gerçek adres/koordinat veya sepet değişiminde yeni kimlik oluşur. Önceki içeriğe
+  dönmek eski teklifi canlandırmaz. Keşif yalnız mevcut adres bağlamını gösterir;
+  diğer adreslerin kayıtları silinmeden “Geçmiş adres gözlemleri” içinde salt
+  okunur saklanır ve karşılaştırmaya alınmaz. Aynı adresin eskimiş veya farklı
+  sepetli kayıtları keşifte kalır, gerekçeleri görünür ve kazanan olamaz.
 - Şubeler ad benzerliğiyle birleştirilmez. Kayıt bulunmaması, platformda restoran
   bulunmadığı iddiası oluşturmaz. Arama ve platform filtresi yalnız yerel kayıtları tarar.
 
@@ -93,11 +103,12 @@ alan adlarıyla sınırlandırılmıştır.
 
 - `src/domain/model.ts`: türler, sağlayıcı kimlikleri ve kaynak URL sınırları.
 - `src/domain/comparison.ts`: kuruş hesabı, koşullar, revizyon/yaş ve şube denetimi.
+- `src/domain/context.ts`: anlamlı değişimde kimlik yenileme ve adres geçmişi ayrımı.
 - `src/domain/storage.ts`: katı sürümlü şema, içe/dışa aktarım doğrulaması.
 - `src/domain/adapters.ts`: gerçek yerel kayıt adapterleri ve sağlayıcı hata izolasyonu.
 - `src/domain/demo.ts`: yalnız açık demo için sentetik kayıtlar.
 - `src/components/`: adres/sepet, gözlem formu ve karşılaştırma arayüzleri.
-- `src/domain/domain.test.ts`, `e2e/app.spec.ts`: çevrimdışı hesap ve tarayıcı akışları.
+- `src/domain/*.test.ts`, `e2e/app.spec.ts`: çevrimdışı hesap ve tarayıcı akışları.
 
 Ürün kararları [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), doğrulanmış sonuçlar
 [PROJECT_STATE.md](PROJECT_STATE.md), ortak geliştirme protokolü

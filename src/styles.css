@@ -1276,3 +1276,18 @@ dialog::backdrop {
     transition: none !important;
   }
 }
+.observation-history {
+  margin-top: 24px;
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.observation-history > details {
+  margin-top: 16px;
+}
+.history-record {
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+}
+.history-record .costs {
+  max-width: 600px;
+}
