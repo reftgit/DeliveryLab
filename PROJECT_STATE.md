@@ -4,9 +4,8 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
 
 ## Aşama ve mevcut hedef
 
-- Aşama: uygulama öncesi geliştirme protokolü kurulumu.
-- Mevcut hedef: Codex, Claude Code ve dış değerlendirici arasında depoya dayalı
-  devamlılığı sağlamak; dört yönerge/durum/bağlam dosyasını doğrulayıp Git'e kaydetmek.
+- Aşama: geliştirme protokolü kuruldu ve belge kontrolleri geçti; uygulama öncesi.
+- Mevcut hedef: ürün tanımını alarak sonraki uygulama görevini netleştirmek.
 - Henüz hiçbir uygulama implementasyonu yok. Kaynak kod, bağımlılık manifesti,
   test paketi, build komutu veya CI/deploy yapılandırması bulunmuyor.
 
@@ -23,6 +22,11 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
   `branch.main.merge=refs/heads/main`.
 - Kurulum öncesi yetkili ağ erişimiyle `git ls-remote --symref origin` başarılı
   oldu ve hiç ref döndürmedi. `origin/main` henüz oluşmamıştı.
+- Kurulum commit'i: `42a88c9222bd84b03a0a1e58ccf90d2bdbdcd1f2`
+  (`docs: bootstrap shared agent development workflow`); yalnızca dört belgeyi ekler.
+- Bu commit sonrasındaki durum kaydı, kurulum hash'ini ve tamamlanmış yerel
+  doğrulamayı saklar. Bu dosyanın en son commit'i için
+  `git log -1 --format='%H %s' -- PROJECT_STATE.md` kullanılabilir.
 - Bu bölümdeki başlangıç bilgileri tarihsel kayıttır. Güncel commit ve teslim
   durumunu `git log --oneline`, `git status --short --branch` ve upstream ile
   karşılaştır; henüz yapılmamış commit/push'u gerçekleşmiş sayma.
