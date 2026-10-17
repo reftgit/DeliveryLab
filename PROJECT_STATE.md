@@ -60,6 +60,12 @@ Faz 1B başlangıcı: `d88a0feaa77a4e3c4e6483acb8c24849ff6bf410`, `main`.
 Yalnız `.vscode/` izlenmiyordu; başlangıç SHA-256 değeri yukarıdakiyle aynıydı.
 Bu görevde `AGENTS.md`, `CLAUDE.md`, bağımlılıklar ve canlı erişim raporu korunur.
 
+Faz 1B uygulama commit'i: `44bc41ef6c8193d5f5640d9b68afd77b36288161`
+(`fix: preserve context identity and separate address history`). Adres/sepet
+doğruluğu, geçmiş görünümü, regresyon testleri ve pilot hazırlığı bu commit'tedir.
+Sonraki belge commit'i bu doğrulanmış referansı kaydeder; güncel HEAD ve uzak
+teslim durumunu Git'ten kontrol edin. Kullanıcının `.vscode/` dosyaları dahil edilmedi.
+
 ## Mevcut içerik
 
 - `AGENTS.md`: başlangıç okuma sırası, kapsam ve doğrulama disiplini, kalıcı bilgi,
