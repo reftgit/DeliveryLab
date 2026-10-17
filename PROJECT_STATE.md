@@ -71,6 +71,12 @@ Faz 1C başlangıcı: `6f0341c75012fdf9cfe8ff7d166618600c850826`, `main`.
 `git fetch origin` sonrası HEAD/upstream/`origin/main` aynıydı (0/0).
 Yalnız `.vscode/` izlenmiyordu. Başlangıç SHA-256 yukarıdakiyle aynıydı.
 
+Faz 1C uygulama commit'i: `93f88d21381bae4945e183cd0408eb73a059d4b0`
+(`feat: add basket-independent manual restaurant discovery`). Sepetsiz keşif,
+v1/v2 veri uyumluluğu, testler ve güncel pilot belgeleri bu commit'tedir.
+Sonraki belge commit'i devir referansını kaydeder; güncel HEAD/push durumunu
+Git'ten doğrulayın. `.vscode/` ve özel/test verileri commit dışında tutuldu.
+
 ## Mevcut içerik
 
 - `AGENTS.md`: başlangıç okuma sırası, kapsam ve doğrulama disiplini, kalıcı bilgi,
