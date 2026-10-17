@@ -1291,3 +1291,27 @@ dialog::backdrop {
 .history-record .costs {
   max-width: 600px;
 }
+.branch-matcher {
+  margin-top: 20px;
+  padding: 20px;
+}
+.discovery-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.discovery-record p {
+  margin: 10px 0;
+}
+@media (max-width: 600px) {
+  .discovery > .section-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .discovery-actions {
+    justify-content: flex-start;
+  }
+  .branch-matcher select {
+    min-width: 0;
+    max-width: 100%;
+  }
+}

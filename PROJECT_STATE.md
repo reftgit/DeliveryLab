@@ -4,8 +4,8 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
 
 ## Aşama ve mevcut hedef
 
-- Aşama: Faz 1B adres/sepet doğruluğu düzeltmeleri ve saha denemesi hazırlığı
-  uygulandı; yerel kontroller geçti. Gerçek saha denemesi henüz yapılmadı.
+- Aşama: Faz 1C sepetsiz MANUAL restoran keşfi ve v1 uyumlu v2 kayıt modeli
+  uygulandı. Gerçek saha denemesi henüz yapılmadı.
 - Mevcut hedef: iki gerçek kullanıcı gözlemiyle manuel saha doğrulamasına hazır
   olmak. Canlı entegrasyon izin/kapsam engelleri nedeniyle kurulmadı.
 - React/TypeScript/Vite uygulaması, LocalStorage, JSON aktarımı ve otomatik
@@ -17,6 +17,7 @@ Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
 | LIVE_DISCOVERY | BLOCKED | İki sağlayıcıdan aynı adres için yetkili gerçek keşif yapılmadı |
 | LIVE_COMPARISON | BLOCKED | İki sağlayıcıdan karşılaştırılabilir canlı sepet alınmadı |
 | MANUAL_COMPARISON | PASS | Manuel giriş ve matematiksel akış sentetik QA girdileriyle geçti; iki gerçek gözlemle saha kontrolü NOT RUN |
+| MANUAL_DISCOVERY | PASS | Sepetsiz kayıt, birleşik liste ve şube onayı sentetik QA girdileriyle doğrulandı |
 | ORDERING | NOT RUN | Kullanıcı talebiyle gerçek sipariş ve ödeme kapsam dışı |
 | MANUAL FIELD CHECK | NOT RUN | Gerçek kullanıcı gözlemi sunulmadı; pilot şablonu boş |
 | AUTOMATED ACCESS FEASIBILITY | BLOCKED | Faz 1 izin/kapsam engelleri çözülmedi; manuel testler bunu değiştirmez |
@@ -66,6 +67,10 @@ doğruluğu, geçmiş görünümü, regresyon testleri ve pilot hazırlığı bu
 Sonraki belge commit'i bu doğrulanmış referansı kaydeder; güncel HEAD ve uzak
 teslim durumunu Git'ten kontrol edin. Kullanıcının `.vscode/` dosyaları dahil edilmedi.
 
+Faz 1C başlangıcı: `6f0341c75012fdf9cfe8ff7d166618600c850826`, `main`.
+`git fetch origin` sonrası HEAD/upstream/`origin/main` aynıydı (0/0).
+Yalnız `.vscode/` izlenmiyordu. Başlangıç SHA-256 yukarıdakiyle aynıydı.
+
 ## Mevcut içerik
 
 - `AGENTS.md`: başlangıç okuma sırası, kapsam ve doğrulama disiplini, kalıcı bilgi,
@@ -76,12 +81,13 @@ teslim durumunu Git'ten kontrol edin. Kullanıcının `.vscode/` dosyaları dahi
 - `src/App.tsx`, `src/components/`, `src/styles.css`: Türkçe responsive arayüz;
   adres/isteğe bağlı konum, hedef sepet, manuel gözlem formu, arama/platform
   filtresi, birleşik şube listesi, karşılaştırma ve resmî platform bağlantıları.
+  Ayrı restoran keşif formu, fiyatsız şube onayı ve iki tür için adres geçmişi.
 - `src/domain/`: kuruş hesabı, indirim/minimum/eksik ücret/toplam kontrolü,
   şube onayı ve geri alma, adres/sepet revizyonları, 30 dakika eskime,
   kaynak ayrımı, yerel adapterler ve bir sağlayıcı hatasında diğerini koruma.
 - Başlangıç boş; DEMO yalnız açık eylemle açılır, sentetiktir, bellekte ayrı
   tutulur ve manuel JSON'a girmez. Çalışan LIVE adapter yok.
-- Sürümlü katı JSON doğrulaması; 1 MB/500 gözlem sınırı; değiştirmeden önce
+- v2 katı JSON ve geçerli v1 okuma; 1 MB/toplam 500 fiyat+keşif kaydı sınırı; değiştirmeden önce
   kullanıcı kontrolü; hatalı dosyada eski kayıtların korunması. Bozuk/dolu
   LocalStorage görünür uyarı verir, bozuk içerik sessizce ezilmez.
 - `package.json`, lockfile ve Vite/TypeScript/Playwright ayarları: yerel çalıştırma,
@@ -89,7 +95,61 @@ teslim durumunu Git'ten kontrol edin. Kullanıcının `.vscode/` dosyaları dahi
 - `README.md`: kurulum/kullanım/test komutları ve kayıt sınırlamaları.
 - `docs/FEASIBILITY.md`: tarihli, kaynaklı platform erişim değerlendirmesi.
 - `docs/PILOT_TEST.md`: gerçek gözlemler için uygulanabilir adımlar, boş kontrol
-  şablonu; manuel saha kontrolü ile otomatik erişim fizibilitesinin ayrı sonuçları.
+  şablonları; sepetsiz keşif ve fiyat senaryoları, otomatik erişimden ayrı sonuçlar.
+
+## Faz 1C uygulaması ve doğrulama kanıtları
+
+- `DiscoveryObservation`: yalnız MANUAL; platform, restoran, fiziksel şube,
+  adres bağlamı, resmî HTTPS kaynak, zaman, `listed`/`confirmed` teslimat bilgisi.
+  `confirmed` ek gözlemin açıklamasını zorunlu tutar; listed yalnız listelenmedir.
+  Her ikisi kullanıcı beyanıdır. Sepet, fiyat, ücret veya hesap gerektirmez.
+- Keşif ve fiyat ayrı dizilerdedir. Ortak şube kimliği/gruplama ile aynı kartta
+  görünür; platformlar arası eşleştirme açık onay ister. Fiyat olmadan da onay
+  ve geri alma çalışır. Tek platform kaydı korunur, diğer platform “Doğrulanmadı”
+  görünür. Keşif kayıtları fiyat seçimine veya kazanan hesabına girmez.
+- Fiyat kaydı silinse de aynı şubenin keşfi varsa onay korunur. Eş şubenin tek
+  kaydı önceki adreste kalmış olsa da mevcut karttan onay geri alınabilir.
+- Keşif sepet değişiminden etkilenmez; adres revizyonu, A → B → A ve 30 dakika
+  eskime uygulanır. Geçmiş restoran keşifleri ayrı, basit ve salt okunur alandadır.
+- Şema v2, LocalStorage `deliverylab.workspace.v2`. v2 yoksa v1 okunur; ilk
+  başarılı kayıtta v2 yazılır. v1 ham verisi silinmez/değişmez. Geçerli v1 JSON
+  tüm fiyat/bağlam/onayları koruyarak, boş keşif listesiyle v2'ye dönüştürülür.
+  Bozuk v2 varken v1'e sessiz dönüş yok; hatalı içe aktarma kayıtları değiştirmez.
+- Yeni keşifte LIVE/DEMO reddedilir; mevcut DEMO fiyatları ayrı bellekte kalır.
+  Yeni bağımlılık, backend, canlı adapter, scraping veya dış platform isteği yok.
+
+Ortam: macOS, Node.js 26.8.1, npm 11.19.0, Vitest 5.0.5,
+Playwright 1.64.1; kurulu Chrome'un geçici test profilleri.
+
+- PASS — `npm ci`: lockfile ile temiz kurulum, 0 güvenlik açığı. Opsiyonel
+  `fsevents` install-script onayı uyarısı; güvenlik ayarı değiştirilmedi.
+- PASS — `npm test`: **109/109** (önceki 83 + 26 yeni test). Keşif şeması,
+  kanıt düzeyleri, kaynak/URL/tarih kontrolleri, onay/gruplama/silme, adres/eskime,
+  v1/v2 uyumluluğu, bozuk veri ve iki tür için ortak kayıt sınırı doğrulandı.
+- PASS — `npm run build`: TypeScript ve Vite; JS 271.04 kB (gzip 82.76 kB),
+  CSS 17.61 kB (gzip 4.63 kB).
+- PASS — son `npm run test:e2e`: **50/50**, 32.8 saniye. 25 senaryo × masaüstü
+  1365×1000 ve dar ekran 375×812. Önceki 16 akış korundu; 9 yeni akış eklendi.
+  Sepetsiz kayıt, teslimat açıklaması zorunluluğu, açık onay/geri alma, arama/filtre,
+  tek platformlu kayıt, fiyatla aynı kart, kazanan engeli, sepet bağımsızlığı,
+  adres geçmişi, A → B → A, eskime, kaynak izolasyonu ve dış HTTP olmaması geçti.
+- PASS — v1 LocalStorage/JSON okuma ve ilk v2 kaydı eski ham v1'i değiştirmedi;
+  fiyat/onaylar ve hesaplanan 205,00 TL sentetik kazanan korundu. Karma v2 JSON
+  hem kayıt türlerini hem geçmişlerini boş test alanına kayıpsız geri aldı.
+  Bozuk içe aktarma ve bozuk v2 mevcut depolamayı sessizce değiştirmedi.
+- PASS — iki viewport'ta sepetsiz keşif ekran görüntüleri incelendi; yatay taşma
+  yok. Bunlar gerçek mobil cihaz testleri değildir. Sentetik görüntüler ve JSON
+  dosyaları `test-results/` altında, Git dışında tutulur.
+- PASS — `git diff --check`; `.vscode/settings.json` başlangıç SHA-256'sı korundu.
+  Agent protokolü, FEASIBILITY ve bağımlılıklar değişmedi. Test sunucuları kapandı;
+  5173/4173 portlarında dinleyici kalmadı.
+
+İlk E2E turunda 42 test geçti, 6 test select alanlarına exact `getByLabel` ile
+erişilememesi nedeniyle zaman aşımına uğradı. Seçiciler erişilebilir combobox
+rolüne düzeltildi. İncelemede diğer platform kaydı geçmişteyken onayı geri alma
+düğmesi görünür kılındı ve bu durum için regresyon senaryosu eklendi.
+Son tam turda hata kalmadı. Gerçek keşif/fiyat saha pilotu NOT RUN;
+LIVE_DISCOVERY ve LIVE_COMPARISON izin/kapsam engelleri hâlâ BLOCKED.
 
 ## Faz 1B düzeltmeleri ve doğrulama kanıtları
 
@@ -213,6 +273,9 @@ sağlayıcı kullanılmadı.
   beyanıdır. Karmaşık kampanyalar ve ürün toplamını aşan indirimler desteklenmez.
 - LocalStorage tarayıcıya/origin'e bağlıdır, şifreli kasa veya yedek değildir;
   çok sekmeli eşzamanlı düzenleme için çatışma çözümü yok. JSON kişisel bağlam içerebilir.
+- Eski uygulama sürümleri v2 JSON'u okuyamaz. Korunan v1 anahtarı v2 kayıtlarından
+  sonra güncellenmez; tam güncel yedek uygulamanın v2 JSON dışa aktarımıdır.
+  Teslimat için ek açıklama istemek beyanın bağımsız doğrulandığı anlamına gelmez.
 - Git ağ işlemleri bu ortamda ek izin gerektirebilir; yerel kurallar ortam
   kısıtlarını aşmaz. Remote/upstream ayarı eksik değil.
 - Bağımsız agent yükleme doğrulaması açık; diğer agentin talimatları okuduğu
@@ -220,9 +283,10 @@ sağlayıcı kullanılmadı.
 
 ## Manuel işler, öncelik ve önerilen sonraki görev
 
-Önerilen tek sonraki görev: [PILOT_TEST.md](docs/PILOT_TEST.md) adımlarıyla aynı
-adres, fiziksel şube ve aynı sepet için kullanıcının iki platformda gördüğü gerçek
-bilgileri MANUAL olarak kaydedip kontrollü saha doğrulaması yapmak. Kabul ölçütleri:
+Önerilen tek sonraki görev: [PILOT_TEST.md](docs/PILOT_TEST.md) ile gerçek kullanıcı
+gözlemleri üzerinde keşif ve fiyat senaryolarını ayrı sonuçlandıran saha pilotu.
+Kabul ölçütleri: önce sepetsiz restoran kaydı ve diğer platformun doğrulanmamış
+durumu doğru gösterilmiş; aynı adres/şube/sepet için iki fiyat gözleminde
 fiyat/ücret/indirim/minimum koşulları ve zaman
 kaydedilmiş; kaynak toplamları hesapla eşleşmiş; farklı veya eksik sepetler kazanan
 üretmemiş; adres geçmişi ve JSON kayıtları korunmuş; kişisel kayıt Git'e girmemiş;

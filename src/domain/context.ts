@@ -1,6 +1,11 @@
 import { basketSignature } from "./comparison";
 import { sameAddress, sameDeliveryContext } from "./model";
-import type { Basket, BasketItem, DeliveryContext, Observation } from "./model";
+import type {
+  Basket,
+  BasketItem,
+  DeliveryContext,
+  RestaurantRecord,
+} from "./model";
 
 /** Inputs are validated by the editor before deciding whether to mint a revision. */
 export function saveAddressContext(
@@ -25,12 +30,12 @@ export function saveBasketContext(
   };
 }
 
-export function partitionObservations(
-  observations: Observation[],
+export function partitionObservations<T extends RestaurantRecord>(
+  observations: T[],
   context: DeliveryContext,
 ) {
-  const current: Observation[] = [],
-    history: Observation[] = [];
+  const current: T[] = [],
+    history: T[] = [];
   for (const observation of observations) {
     (sameDeliveryContext(observation.context, context)
       ? current

@@ -11,6 +11,7 @@ import type {
   BranchMatch,
   DeliveryContext,
   Observation,
+  RestaurantRecord,
 } from "./model";
 
 export function parseMoney(value: string): number | null {
@@ -47,8 +48,8 @@ export function basketSignature(items: BasketItem[]): string {
   return JSON.stringify([...sums].sort(([a], [b]) => a.localeCompare(b)));
 }
 export function sameBranch(
-  a: Observation,
-  b: Observation,
+  a: RestaurantRecord,
+  b: RestaurantRecord,
   matches: BranchMatch[],
 ): boolean {
   if (a.source !== b.source) return false;
@@ -186,11 +187,11 @@ export function compareQuotes(
         .map((e) => e.observation.id);
   return { evaluations, reason, winnerIds, comparable: !reason };
 }
-export function groupRestaurants(
-  observations: Observation[],
+export function groupRestaurants<T extends RestaurantRecord>(
+  observations: T[],
   matches: BranchMatch[],
 ) {
-  const groups: Observation[][] = [];
+  const groups: T[][] = [];
   for (const observation of observations) {
     const group = groups.find((items) =>
       sameBranch(items[0], observation, matches),

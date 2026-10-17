@@ -1,7 +1,8 @@
 # DeliveryLab
 
-Türkiye'de iki yemek platformunda görülen sepetleri yerelde karşılaştıran Faz 1
-fizibilite prototipi. **Canlı sağlayıcı entegrasyonu yoktur.** Yemeksepeti ve
+Türkiye'de iki yemek platformunda görülen restoranları sepetsiz kaydeden ve
+sepet fiyatlarını yerelde karşılaştıran Faz 1C fizibilite prototipi.
+**Canlı sağlayıcı entegrasyonu yoktur.** Yemeksepeti ve
 Uber Eats Trendyol Go tek arayüzde kullanıcı gözlemleriyle karşılaştırılır.
 Erişim kanıtları ve engeller: [docs/FEASIBILITY.md](docs/FEASIBILITY.md).
 Gerçek kullanıcı gözlemleriyle deneme adımları ve boş kontrol şablonu:
@@ -48,14 +49,24 @@ yerine tarayıcı viewport testi yapılır. E2E sırasında dış HTTP istekleri
 
 1. İlk açılış boştur. Adres etiketini kaydedin; koordinat isteğe bağlıdır.
    “Konumumu kullan” yalnızca tıklandığında tarayıcı izni ister.
-2. Ürün, porsiyon, seçenek ve adetleri girip hedef sepeti kaydedin.
-3. Her platformda kendiniz gördüğünüz sepeti “Gözlem ekle” ile kaydedin.
+2. Yemek seçmediyseniz “Restoran gözlemi ekle”yi kullanın. Platform, restoran,
+   fiziksel şube, bağlantı ve gözlem zamanını kaydedin. Sepet, ürün fiyatı veya
+   teslimat ücreti gerekmez. “Bu adres için listelendi” teslimat doğrulaması
+   değildir. Teslimatı ayrıca doğruladıysanız gördüğünüz ek bilgiyi kısaca yazın;
+   bu açıklama da kullanıcı beyanıdır, sağlayıcı doğrulaması değildir.
+3. Fiyat karşılaştırmak istediğinizde ürün, porsiyon, seçenek ve adetleri girip
+   hedef sepeti kaydedin. Gördüğünüz sepeti “Sepet fiyatı gözlemi ekle” ile kaydedin.
    Fiyatlar TL girilir, kuruş tam sayısına çevrilir. Bilinmeyen ücretleri boş
    bırakın; yalnızca gerçekten sıfır olduğunu biliyorsanız 0 girin.
-4. İki farklı platformdan gözlem seçin. Fiziksel şubeyi kontrol edip eşleştirmeyi
-   açıkça onaylayın. Şüpheli şubeleri ayrı tutun; onay geri alınabilir.
+4. Fiyatlar olmadan da “Fiyat olmadan da şube eşleştirin” alanında iki platformun
+   fiziksel şubesini kontrol edip açık onayla eşleştirebilirsiniz. Fiyat kayıtları
+   aynı şube kartında görünür. Onay karttan geri alınabilir; isim benzerliği tek
+   başına birleştirme yapmaz. Diğer platformun verisi yoksa “Doğrulanmadı” görünür;
+   bu, restoranın o platformda bulunmadığı anlamına gelmez.
 5. Eksiksiz, aynı bağlama ait ve en fazla 30 dakikalık gözlemler karşılaştırılır.
-   “En ucuz” yalnızca bu iki kayıt için matematiksel sonuçtur.
+   Bunun için iki farklı platformun sepet fiyatı kaydını “Karşılaştır” ile seçin.
+   “En ucuz” yalnızca bu iki fiyat kaydı için matematiksel sonuçtur. Yalnız keşif
+   kaydı olan kart “Sepet fiyatı bulunmuyor” der ve kazanan üretemez.
 6. Resmî bağlantı platformu açar; sepet aktarımı, sipariş veya ödeme yapılmaz.
 
 Demo açıkça seçilerek açılır; restoran ve fiyatları sentetiktir, manuel kayıtlarla
@@ -76,24 +87,35 @@ karışmaz, kalıcı kaydedilmez ve canlı erişim hatasında otomatik açılmaz
   Unicode ve boşluk biçimi farkları yok sayılır; koordinatlar tam değerleriyle
   karşılaştırılır. Sepette satır sırası önemsizdir; aynı ürün satırlarının adetleri
   toplanır, ürün/porsiyon/seçenek içerikleri ve toplam adet eşleşmelidir.
+- Restoran keşfi belirli bir sepete bağlı değildir; sepet değişiminde korunur.
+  Keşif gözlemi de 30 dakika sonra eski sayılır; teslimat/listelenme yeniden
+  kontrol edilmelidir. Eski kayıt güncel teslimat veya fiyat garantisi değildir.
 - Gerçek adres/koordinat veya sepet değişiminde yeni kimlik oluşur. Önceki içeriğe
   dönmek eski teklifi canlandırmaz. Keşif yalnız mevcut adres bağlamını gösterir;
-  diğer adreslerin kayıtları silinmeden “Geçmiş adres gözlemleri” içinde salt
-  okunur saklanır ve karşılaştırmaya alınmaz. Aynı adresin eskimiş veya farklı
+  diğer adreslerin fiyat kayıtları “Geçmiş adres gözlemleri”, sepetsiz kayıtları
+  “Geçmiş restoran keşifleri” içinde silinmeden ve salt okunur saklanır;
+  karşılaştırmaya alınmaz. Aynı adresin eskimiş veya farklı
   sepetli kayıtları keşifte kalır, gerekçeleri görünür ve kazanan olamaz.
 - Şubeler ad benzerliğiyle birleştirilmez. Kayıt bulunmaması, platformda restoran
   bulunmadığı iddiası oluşturmaz. Arama ve platform filtresi yalnız yerel kayıtları tarar.
 
 ## Verinin saklanması ve JSON
 
-MANUAL çalışma alanı tarayıcı LocalStorage'ında `deliverylab.workspace.v1`
-anahtarındadır. Veriler sunucuya gönderilmez; aynı tarayıcı/origin altında kalır.
+MANUAL çalışma alanının JSON sürümü **2**; LocalStorage anahtarı
+`deliverylab.workspace.v2`'dir. v2 yoksa geçerli `deliverylab.workspace.v1`
+kayıtları okunur; fiyatlar, bağlamlar ve şube eşleştirmeleri aynen korunur,
+keşif listesi boş başlar. Okuma depolamayı değiştirmez. İlk başarılı kayıtta v2
+yazılır, eski v1 anahtarı yedek olarak bırakılır. v2 varsa önceliklidir;
+bozuksa v1'e sessizce dönülmez. Eski uygulama sürümleri v2'yi okuyamaz.
+
+Veriler sunucuya gönderilmez; aynı tarayıcı/origin altında kalır.
 Yerel depolama şifreli kasa değildir. Depolama hatası görünür şekilde bildirilir;
 bozuk kayıt sessizce ezilmez, yeni veriler oturumda kalır ve dışa aktarılabilir.
 
 JSON dışa aktarımı adres ve gözlemleri içerir; kişisel dosyaları Git'e koymayın.
 `local-data/` ve `deliverylab-export*.json` Git dışında tutulur. İçe aktarma en fazla
-1 MB / 500 gözlem kabul eder; önizleme ve açık değiştirme eylemi gerektirir.
+1 MB / toplam 500 fiyat ve keşif kaydı kabul eder; önizleme ve açık değiştirme
+eylemi gerektirir. Geçerli v1 ve v2 JSON okunur; dışa aktarım her zaman v2'dir.
 Geçersiz JSON, beklenmeyen alan, yanlış tür, çelişen eşleşme, uygun olmayan kaynak
 URL'si veya LIVE/DEMO etiketi reddedilir. Hata mevcut kayıtları değiştirmez.
 HTML metinleri React tarafından metin olarak işlenir; dış linkler resmî HTTPS
@@ -104,6 +126,7 @@ alan adlarıyla sınırlandırılmıştır.
 - `src/domain/model.ts`: türler, sağlayıcı kimlikleri ve kaynak URL sınırları.
 - `src/domain/comparison.ts`: kuruş hesabı, koşullar, revizyon/yaş ve şube denetimi.
 - `src/domain/context.ts`: anlamlı değişimde kimlik yenileme ve adres geçmişi ayrımı.
+- `src/domain/discovery.ts`: keşif eskimesi ve iki kayıt türünde şube onayını koruyan silme.
 - `src/domain/storage.ts`: katı sürümlü şema, içe/dışa aktarım doğrulaması.
 - `src/domain/adapters.ts`: gerçek yerel kayıt adapterleri ve sağlayıcı hata izolasyonu.
 - `src/domain/demo.ts`: yalnız açık demo için sentetik kayıtlar.

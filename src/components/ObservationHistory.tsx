@@ -18,10 +18,10 @@ export function ObservationHistory({
         <span className="count">{observations.length}</span>
       </h2>
       <p className="muted">
-        Bu kayıtlar önceki adres bağlamlarına aittir. Mevcut adrese teslimat
-        veya güncel fiyat seçeneği değildir; karşılaştırmaya alınmaz. Gözlem
-        zamanı ayrı tutulur: aynı adresin fiyatları da 30 dakika sonra eski
-        sayılır.
+        Bu sepet fiyatı kayıtları önceki adres bağlamlarına aittir. Mevcut
+        adrese teslimat veya güncel fiyat seçeneği değildir; karşılaştırmaya
+        alınmaz. Gözlem zamanı ayrı tutulur: aynı adresin fiyatları da 30 dakika
+        sonra eski sayılır.
       </p>
       <details>
         <summary>Geçmiş kayıtları göster ({observations.length})</summary>

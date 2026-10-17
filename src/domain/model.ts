@@ -45,13 +45,22 @@ export interface Discount {
   amount: number;
   eligible: boolean | null;
 }
-export interface Observation {
+export interface RestaurantRecord {
   id: string;
   platform: Platform;
   source: Source;
   restaurant: string;
   branch: string;
   context: DeliveryContext;
+  sourceUrl: string;
+  observedAt: string;
+}
+export interface DiscoveryObservation extends RestaurantRecord {
+  source: "MANUAL";
+  deliveryStatus: "listed" | "confirmed";
+  deliveryEvidence: string;
+}
+export interface Observation extends RestaurantRecord {
   basketId: string;
   items: PricedItem[];
   deliveryFee: number | null;
@@ -62,18 +71,17 @@ export interface Observation {
   observedTotal: number | null;
   deliveryConfirmed: boolean;
   eta: string;
-  sourceUrl: string;
-  observedAt: string;
 }
 export interface BranchMatch {
   left: string;
   right: string;
 }
 export interface Workspace {
-  version: 1;
+  version: 2;
   context: DeliveryContext;
   basket: Basket;
   observations: Observation[];
+  discoveries: DiscoveryObservation[];
   matches: BranchMatch[];
 }
 export const FRESHNESS_MS = 30 * 60 * 1000;
@@ -94,7 +102,7 @@ export function sameDeliveryContext(
   // A -> B -> A creates a new revision; never revive a previous observation.
   return a.id === b.id && sameAddress(a, b);
 }
-export function branchKey(o: Observation): string {
+export function branchKey(o: RestaurantRecord): string {
   return JSON.stringify([
     o.source,
     o.platform,
@@ -118,7 +126,7 @@ export function safeSourceUrl(value: string, platform: Platform): boolean {
 }
 export function emptyWorkspace(): Workspace {
   return {
-    version: 1,
+    version: 2,
     context: {
       id: crypto.randomUUID(),
       label: "",
@@ -127,6 +135,7 @@ export function emptyWorkspace(): Workspace {
     },
     basket: { id: crypto.randomUUID(), items: [] },
     observations: [],
+    discoveries: [],
     matches: [],
   };
 }

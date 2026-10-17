@@ -99,7 +99,7 @@ export function ObservationForm({
         <div className="dialog-title">
           <div>
             <span className="eyebrow">MANUAL · SİZİN GÖZLEMİNİZ</span>
-            <h2 id="observation-title">Gözlem ekle</h2>
+            <h2 id="observation-title">Sepet fiyatı gözlemi ekle</h2>
           </div>
           <button
             type="button"

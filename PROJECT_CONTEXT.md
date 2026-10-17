@@ -34,6 +34,10 @@ fikrini para harcamadan araştıran yerel prototiptir.
 - Resmî bağlantı açılır; desteklenmeyen sepet aktarımı varmış gibi gösterilmez.
 - LIVE, MANUAL, DEMO açıkça ayrılır. İlk açılış boş; demo isteğe bağlıdır.
   Manuel veya demo testler LIVE_DISCOVERY/LIVE_COMPARISON için PASS sayılmaz.
+- Faz 1C: restoran keşfi ile sepet fiyatı bağımsız tutulur. Kullanıcı yemek
+  seçmeden, fiyat/ücret bilmeden bir adreste gördüğü restoranı MANUAL kaydedebilir.
+  Aynı şubenin iki kayıt türü aynı kartta görünür; keşif hiçbir fiyat hesabına
+  girmez. Diğer platformda kayıt yoksa sonuç “Doğrulanmadı”dır, yokluk iddiası değildir.
 
 ## Maliyet, veri ve güvenlik sınırları
 
@@ -99,10 +103,23 @@ Uygulama tercihleri (ürün gereksinimi değil, Faz 1 uygulama politikası):
   sağlayıcı garantisi değil muhafazakâr laboratuvar eşiğidir.
 - Şube kimliği kaynak/platform/restoran/şube bileşimidir. Platformlar arası
   isimden otomatik eşleştirme yok; açık kullanıcı onayı gerekir.
+- Keşif kaydı yalnız MANUAL; platform/restoran/fiziksel şube/adres/bağlantı/zaman
+  taşır. Listelenme ile ayrıca teslimat doğrulaması ayrıdır. İkincisi ek teslimat
+  gözleminin kısa açıklamasını gerektirir; bu yine kullanıcı beyanıdır. Fiyat veya
+  sepet kimliği içermez; sepet değişimi keşfi etkilemez. Her iki kayıt türünde
+  adres revizyonu ve 30 dakika eskime uygulanır. Fiyat ve keşif için ayrı, basit
+  geçmiş bölümleri kullanılır; eski kayıtlar otomatik canlandırılmaz.
+- Fiyatsız şube eşleştirmesi de açık onay ve geri alma ister. Eşleştirme iki
+  kayıt türünün ortak şube kimliğine bağlıdır; bir türde kayıt silinip diğerinde
+  aynı şube kalırsa onay korunur. Onay, başka adrese teslimat kanıtı değildir.
 - Minimum koşulun indirim öncesi/sonrası temeli ayrı tutulur. İndirim uygunluğu
   belirsizse karşılaştırma engellenir; ürün toplamını aşan indirim desteklenmez.
 - İçe aktarılan LIVE/DEMO iddiası kabul edilmez; yalnız MANUAL kayıt taşınabilir.
-  Katı sürümlü JSON, 1 MB/500 gözlem sınırı ve değiştirmeden önce onay kullanılır.
+  Faz 1C ile JSON v2 ve `deliverylab.workspace.v2` kullanılır. Geçerli v1 içeriği
+  bütün fiyatları/bağlamları/onayları koruyarak ve boş keşif listesiyle okunur.
+  İlk başarılı kayıtta v2 yazılır; v1 anahtarı silinmez. v2 varken bozulursa eski
+  v1'e sessiz geri dönüş yapılmaz. İçe aktarma v1/v2, dışa aktarma yalnız v2;
+  katı şema, toplam 1 MB/500 kayıt sınırı ve değiştirmeden önce onay korunur.
 - Çalışan LIVE adapter yok; iki platformun mevcut kayıtları için gerçek yerel
   adapterler ve hata izolasyonu vardır. Üçüncü sağlayıcı araştırılmadı/eklenmedi.
 

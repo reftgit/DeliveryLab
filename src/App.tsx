@@ -4,6 +4,13 @@ import { ContextEditor } from "./components/Editors";
 import { ObservationForm } from "./components/ObservationForm";
 import { Comparison } from "./components/Comparison";
 import { ObservationHistory } from "./components/ObservationHistory";
+import { DiscoveryForm } from "./components/DiscoveryForm";
+import {
+  DiscoveryRecord,
+  DiscoveryHistory,
+} from "./components/DiscoveryRecord";
+import { BranchMatcher } from "./components/BranchMatcher";
+import { removeRecord } from "./domain/discovery";
 import { collectObservations, localAdapters } from "./domain/adapters";
 import { evaluateQuote, groupRestaurants, money } from "./domain/comparison";
 import { demoWorkspace } from "./domain/demo";
@@ -21,17 +28,18 @@ import {
   exportWorkspace,
   MAX_IMPORT_BYTES,
   parseImport,
+  readStoredWorkspace,
   STORAGE_KEY,
   validateWorkspace,
 } from "./domain/storage";
 
 function loadLocal() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return { workspace: raw ? parseImport(raw) : emptyWorkspace(), error: "" };
+    return { ...readStoredWorkspace(localStorage), error: "" };
   } catch {
     return {
       workspace: emptyWorkspace(),
+      migrated: false,
       error:
         "Yerel kayıt okunamadı. Mevcut depolamanın üzerine yazılmadı; yeni değişiklikler yalnızca bu oturumda tutulacak.",
     };
@@ -51,7 +59,12 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Platform | "all">("all");
   const [showForm, setShowForm] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [showDiscoveryForm, setShowDiscoveryForm] = useState(false);
+  const [notice, setNotice] = useState(
+    initial.migrated
+      ? "v1 kayıtları kayıpsız açıldı. Sonraki başarılı kayıtta v2 olarak saklanır; önceki v1 depolaması korunur."
+      : "",
+  );
   const [pendingImport, setPendingImport] = useState<Workspace | null>(null);
   const [editorVersion, setEditorVersion] = useState(0);
   const [now, setNow] = useState(Date.now());
@@ -77,9 +90,14 @@ export default function App() {
     observations,
     workspace.context,
   );
+  const discoveries = partitionObservations(
+    demo ? [] : workspace.discoveries,
+    workspace.context,
+  );
+  const currentRecords = [...current, ...discoveries.current];
   const groups = useMemo(
-    () => groupRestaurants(current, workspace.matches),
-    [current, workspace.matches],
+    () => groupRestaurants(currentRecords, workspace.matches),
+    [currentRecords, workspace.matches],
   );
   const visible = groups.filter((group) =>
     group.some(
@@ -124,6 +142,19 @@ export default function App() {
       setNotice(
         "Yeni bir gözlem seçmeden önce seçili gözlemlerden birini çıkarın.",
       );
+  }
+  function deleteRecord(id: string) {
+    if (
+      window.confirm("Bu gözlem silinsin mi?") &&
+      save(removeRecord(workspace, id))
+    )
+      setSelected(selected.filter((value) => value !== id));
+  }
+  function matchBranches(left: string, right: string) {
+    return save({
+      ...workspace,
+      matches: [...workspace.matches, { left, right }],
+    });
   }
   function exportData() {
     try {
@@ -276,9 +307,10 @@ export default function App() {
           <section className="panel import-review">
             <h2>İçe aktarımı kontrol edin</h2>
             <p>
-              {pendingImport.observations.length} MANUAL gözlem, adres ve sepet
-              bilgileri mevcut manuel çalışma alanınızın yerini alacak. Mevcut
-              kayıtlarınızı önce dışa aktarabilirsiniz.
+              {pendingImport.observations.length} sepet fiyatı ve{" "}
+              {pendingImport.discoveries.length} restoran keşfi kaydı (MANUAL),
+              adres ve sepet bilgileri mevcut manuel çalışma alanınızın yerini
+              alacak. Mevcut kayıtlarınızı önce dışa aktarabilirsiniz.
             </p>
             <div className="actions">
               <button
@@ -315,21 +347,31 @@ export default function App() {
                 Restoran keşfi <span className="count">{groups.length}</span>
               </h2>
             </div>
-            <button
-              disabled={
-                Boolean(demo) ||
-                !workspace.context.label ||
-                !workspace.basket.items.length
-              }
-              onClick={() => setShowForm(true)}
-            >
-              ＋ Gözlem ekle
-            </button>
+            <div className="actions discovery-actions">
+              <button
+                disabled={Boolean(demo) || !workspace.context.label}
+                onClick={() => setShowDiscoveryForm(true)}
+              >
+                Restoran gözlemi ekle
+              </button>
+              <button
+                className="secondary"
+                disabled={
+                  Boolean(demo) ||
+                  !workspace.context.label ||
+                  !workspace.basket.items.length
+                }
+                onClick={() => setShowForm(true)}
+              >
+                Sepet fiyatı gözlemi ekle
+              </button>
+            </div>
           </div>
           <p className="muted">
             {workspace.context.label || "Henüz adres belirlenmedi"} · Yalnızca
             bu adres bağlamındaki kayıtlar. Teslimat uygunluğu kullanıcı
-            beyanıdır.
+            beyanıdır. Diğer platformda kayıt olmaması, restoranın orada
+            bulunmadığı anlamına gelmez.
           </p>
           <div className="filterbar">
             <label className="search">
@@ -377,20 +419,20 @@ export default function App() {
                 ＋
               </div>
               <h3>
-                {current.length
+                {currentRecords.length
                   ? "Aramanıza uyan kayıt bulunamadı."
-                  : history.length
+                  : history.length + discoveries.history.length
                     ? "Bu adres için henüz gözlem yok."
                     : "İlk gözleminizle başlayın."}
               </h3>
               <p>
-                {current.length
+                {currentRecords.length
                   ? "Aramayı veya platform filtresini değiştirin."
-                  : history.length
+                  : history.length + discoveries.history.length
                     ? "Önceki adres kayıtları geçmiş alanında korunuyor. Bu adres için platformları yeniden kontrol edip gözlem ekleyin."
-                    : "Önce adresinizi ve karşılaştıracağınız sepeti kaydedin. Ardından platformlarda gördüğünüz bilgileri ekleyin."}
+                    : "Önce adresinizi kaydedin; yemek seçmeden restoran gözlemi ekleyebilirsiniz. Fiyat karşılaştırması için ayrıca sepet oluşturun."}
               </p>
-              {!observations.length && (
+              {!observations.length && !workspace.discoveries.length && (
                 <button
                   className="secondary"
                   onClick={() => {
@@ -430,11 +472,24 @@ export default function App() {
                     >
                       {platforms.size === 2
                         ? "✓ Şube eşleşmesi kullanıcı tarafından onaylandı"
-                        : "Diğer platform doğrulanamadı"}
+                        : "Diğer platform: Doğrulanmadı"}
                     </p>
+                    {!group.some((o) => "items" in o) && (
+                      <p className="muted">Sepet fiyatı bulunmuyor</p>
+                    )}
                     {group
                       .filter((o) => filter === "all" || o.platform === filter)
                       .map((o) => {
+                        if (!("items" in o))
+                          return (
+                            <DiscoveryRecord
+                              key={o.id}
+                              record={o}
+                              context={workspace.context}
+                              now={now}
+                              onDelete={() => deleteRecord(o.id)}
+                            />
+                          );
                         const evaluation = evaluateQuote(
                           o,
                           workspace.context,
@@ -449,6 +504,7 @@ export default function App() {
                             }
                             key={o.id}
                           >
+                            <span className="source-badge">Sepet fiyatı</span>
                             <div className="observation-top">
                               <span className={"provider-label " + o.platform}>
                                 {PROVIDERS[o.platform].name}
@@ -513,32 +569,7 @@ export default function App() {
                               </a>
                               <button
                                 className="text-button danger"
-                                onClick={() => {
-                                  if (
-                                    window.confirm("Bu gözlem silinsin mi?")
-                                  ) {
-                                    const rest = workspace.observations.filter(
-                                      (r) => r.id !== o.id,
-                                    );
-                                    const remaining = new Set(
-                                      rest.map(branchKey),
-                                    );
-                                    if (
-                                      save({
-                                        ...workspace,
-                                        observations: rest,
-                                        matches: workspace.matches.filter(
-                                          (m) =>
-                                            remaining.has(m.left) &&
-                                            remaining.has(m.right),
-                                        ),
-                                      })
-                                    )
-                                      setSelected(
-                                        selected.filter((id) => id !== o.id),
-                                      );
-                                  }
-                                }}
+                                onClick={() => deleteRecord(o.id)}
                               >
                                 Gözlemi sil
                               </button>
@@ -546,7 +577,11 @@ export default function App() {
                           </div>
                         );
                       })}
-                    {platforms.size === 2 && (
+                    {workspace.matches.some(
+                      (m) =>
+                        m.left === branchKey(first) ||
+                        m.right === branchKey(first),
+                    ) && (
                       <button
                         className="text-button"
                         onClick={() =>
@@ -568,20 +603,28 @@ export default function App() {
               })}
             </div>
           )}
+          <BranchMatcher
+            key={
+              (demo ? "demo" : "manual") + workspace.context.id + editorVersion
+            }
+            records={currentRecords}
+            matches={workspace.matches}
+            onMatch={matchBranches}
+          />
         </section>
         <Comparison
           key={selected.join("|")}
           observations={selectedObservations}
           workspace={workspace}
           now={now}
-          onMatch={(left, right) =>
-            save({
-              ...workspace,
-              matches: [...workspace.matches, { left, right }],
-            })
-          }
+          onMatch={matchBranches}
         />
         <ObservationHistory observations={history} />
+        <DiscoveryHistory
+          records={discoveries.history}
+          context={workspace.context}
+          now={now}
+        />
         <section className="data-tools panel">
           <div>
             <h2>Kayıtlarınız, sizin cihazınızda.</h2>
@@ -618,6 +661,22 @@ export default function App() {
           <span>Canlı veri yok · Gerçek sipariş yok · Yerel çalışma</span>
         </footer>
       </main>
+      {showDiscoveryForm && (
+        <DiscoveryForm
+          context={workspace.context}
+          onClose={() => setShowDiscoveryForm(false)}
+          onSave={(o) => {
+            if (
+              save({ ...workspace, discoveries: [...workspace.discoveries, o] })
+            ) {
+              setShowDiscoveryForm(false);
+              setNotice(
+                "MANUAL restoran gözlemi eklendi. Sepet fiyatı veya teslimat garantisi değildir.",
+              );
+            }
+          }}
+        />
+      )}
       {showForm && (
         <ObservationForm
           workspace={workspace}

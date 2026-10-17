@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import type { Workspace } from "../src/domain/model";
+import { branchKey } from "../src/domain/model";
 
 // All values below are synthetic QA inputs, never real platform observations.
 async function setupWorkspace(page: Page) {
@@ -23,7 +24,7 @@ async function addObservation(
   fee = "20",
 ) {
   await page
-    .getByRole("button", { name: "＋ Gözlem ekle", exact: true })
+    .getByRole("button", { name: "Sepet fiyatı gözlemi ekle", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
   await dialog
@@ -72,8 +73,76 @@ async function selectPairAndMatch(page: Page) {
 }
 async function readWorkspace(page: Page): Promise<Workspace> {
   return page.evaluate(() =>
-    JSON.parse(localStorage.getItem("deliverylab.workspace.v1")!),
+    JSON.parse(localStorage.getItem("deliverylab.workspace.v2")!),
   );
+}
+async function addDiscovery(
+  page: Page,
+  platform = "yemeksepeti",
+  confirmed = false,
+) {
+  await page
+    .getByRole("button", { name: "Restoran gözlemi ekle", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("combobox", { name: "Platform", exact: true })
+    .selectOption(platform);
+  await dialog.getByLabel("Restoran adı", { exact: true }).fill("Test Mutfak");
+  await dialog
+    .getByLabel("Fiziksel şube", { exact: true })
+    .fill("Merkez · sentetik şube");
+  await dialog
+    .getByLabel(
+      "Bu adres seçiliyken restoranın platformda listelendiğini gördüm.",
+    )
+    .check();
+  if (confirmed) {
+    await dialog
+      .getByRole("combobox", { name: "Teslimat bilgisi", exact: true })
+      .selectOption("confirmed");
+    await dialog
+      .getByRole("button", { name: "Restoran gözlemini kaydet", exact: true })
+      .click();
+    await expect(dialog).toBeVisible();
+    expect(
+      await dialog
+        .getByLabel("Teslimatı nasıl doğruladınız?")
+        .evaluate((el) => (el as HTMLInputElement).validity.valueMissing),
+    ).toBe(true);
+    await dialog
+      .getByLabel("Teslimatı nasıl doğruladınız?")
+      .fill("Sentetik ek teslimat bilgisi gözlendi");
+  }
+  await expect(dialog.getByLabel("Birim fiyat (TL)")).toHaveCount(0);
+  await expect(dialog.getByLabel("Teslimat ücreti (TL)")).toHaveCount(0);
+  await dialog
+    .getByRole("button", { name: "Restoran gözlemini kaydet", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+}
+async function matchDiscoveries(page: Page) {
+  const records = (await readWorkspace(page)).discoveries;
+  await page
+    .getByText("Fiyat olmadan da şube eşleştirin", { exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Birinci şube", exact: true })
+    .selectOption(branchKey(records[0]));
+  await page
+    .getByRole("combobox", { name: "İkinci şube", exact: true })
+    .selectOption(branchKey(records[1]));
+  await expect(
+    page.getByRole("button", { name: "Şube onayını kaydet", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByLabel(
+      "Seçtiğim iki kaydın aynı fiziksel şube olduğunu ayrıca kontrol ettim.",
+    )
+    .check();
+  await page
+    .getByRole("button", { name: "Şube onayını kaydet", exact: true })
+    .click();
 }
 async function openSetup(page: Page) {
   if (
@@ -98,7 +167,8 @@ test.beforeEach(async ({ page }) => {
       : route.abort();
   });
   // Timer interception must precede application startup.
-  if (test.info().title.startsWith("açık ekranda")) await page.clock.install();
+  if (/^(açık ekranda|keşif eskimesi)/.test(test.info().title))
+    await page.clock.install();
   await page.goto("/");
 });
 test("dürüst ilk açılış, isteğe bağlı demo, arama, filtre ve dar ekran", async ({
@@ -271,7 +341,7 @@ test("JSON dışa/içe aktarımı ve hatalı dosyada mevcut kayıtların korunma
   await expect(page.locator(".restaurant-card")).toHaveCount(1);
   expect(await readWorkspace(page)).toEqual(beforeExport);
   await page.evaluate(() =>
-    localStorage.removeItem("deliverylab.workspace.v1"),
+    localStorage.removeItem("deliverylab.workspace.v2"),
   );
   await page.reload();
   await expect(
@@ -294,13 +364,13 @@ test("JSON dışa/içe aktarımı ve hatalı dosyada mevcut kayıtların korunma
 });
 test("bozuk yerel kayıt sessizce ezilmez", async ({ page }) => {
   await page.evaluate(() =>
-    localStorage.setItem("deliverylab.workspace.v1", "{bad"),
+    localStorage.setItem("deliverylab.workspace.v2", "{bad"),
   );
   await page.reload();
   await expect(page.getByRole("alert")).toContainText("üzerine yazılmadı");
   await setupWorkspace(page);
   expect(
-    await page.evaluate(() => localStorage.getItem("deliverylab.workspace.v1")),
+    await page.evaluate(() => localStorage.getItem("deliverylab.workspace.v2")),
   ).toBe("{bad");
 });
 test("adres kaydı kaydedilmemiş sepet taslağını silmez", async ({ page }) => {
@@ -345,7 +415,7 @@ test("konum izni yalnız açık eylemde istenir; reddedilince elle devam edilir"
   ).toBeVisible();
   await setupWorkspace(page);
   await expect(
-    page.getByRole("button", { name: "＋ Gözlem ekle" }),
+    page.getByRole("button", { name: "Sepet fiyatı gözlemi ekle" }),
   ).toBeEnabled();
 });
 test("sayfa otomatik dış ağ isteği göndermez ve tarayıcı hatası üretmez", async ({
@@ -512,7 +582,7 @@ test("MANUAL geçmişi DEMO ile karışmaz; mevcut adresin tek platform kaydı k
   const manual = await readWorkspace(page);
   await expect(page.locator(".discovery .restaurant-card")).toHaveCount(1);
   await expect(page.locator(".discovery")).toContainText(
-    "Diğer platform doğrulanamadı",
+    "Diğer platform: Doğrulanmadı",
   );
   await page.getByRole("button", { name: "Karşılaştır", exact: true }).click();
   await expect(page.locator(".winner")).toHaveCount(0);
@@ -536,4 +606,323 @@ test("MANUAL geçmişi DEMO ile karışmaz; mevcut adresin tek platform kaydı k
     "Geçmiş adres gözlemleri 1",
   );
   expect(await readWorkspace(page)).toEqual(manual);
+});
+
+test("sepetsiz keşif, teslimat ayrımı, açık şube onayı/geri alma ve filtre", async ({
+  page,
+}) => {
+  await expect(
+    page.getByRole("button", { name: "Restoran gözlemi ekle", exact: true }),
+  ).toBeDisabled();
+  await changeAddress(page, "Test adresi · sentetik");
+  await expect(
+    page.getByRole("button", {
+      name: "Sepet fiyatı gözlemi ekle",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await addDiscovery(page);
+  expect((await readWorkspace(page)).basket.items).toEqual([]);
+  await expect(page.locator(".restaurant-card")).toHaveCount(1);
+  await expect(page.locator(".restaurant-card")).toContainText(
+    "Sepet fiyatı bulunmuyor",
+  );
+  await expect(page.locator(".restaurant-card")).toContainText(
+    "Diğer platform: Doğrulanmadı",
+  );
+  await expect(page.locator(".discovery-record")).toContainText(
+    "Teslimat ayrıca doğrulanmadı",
+  );
+  await expect(
+    page.getByRole("button", { name: "Karşılaştır", exact: true }),
+  ).toHaveCount(0);
+  await addDiscovery(page, "trendyol-go", true);
+  await expect(page.locator(".restaurant-card")).toHaveCount(2);
+  await expect(page.locator(".discovery-record").last()).toContainText(
+    "Teslimat ayrıca doğrulandı · Kullanıcı beyanı",
+  );
+  await matchDiscoveries(page);
+  await expect(page.locator(".restaurant-card")).toHaveCount(1);
+  await expect(page.locator(".winner")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Şube eşleştirmesini geri al" })
+    .click();
+  await expect(page.locator(".restaurant-card")).toHaveCount(2);
+  await page.getByRole("searchbox").fill("olmayan sentetik arama");
+  await expect(page.locator(".restaurant-card")).toHaveCount(0);
+  await page.getByRole("searchbox").fill("Merkez");
+  await page
+    .getByRole("group", { name: "Platform filtresi" })
+    .getByRole("button", { name: "Yemeksepeti", exact: true })
+    .click();
+  await expect(page.locator(".restaurant-card")).toHaveCount(1);
+  await page
+    .getByRole("group", { name: "Platform filtresi" })
+    .getByRole("button", { name: "Tümü", exact: true })
+    .click();
+  await page.screenshot({
+    path: test.info().outputPath("basket-free-discovery.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("keşif sepetten bağımsız kalır; adres ve A → B → A geçmişi korunur", async ({
+  page,
+}) => {
+  await changeAddress(page, "Test adresi · sentetik");
+  await addDiscovery(page);
+  const records = (await readWorkspace(page)).discoveries;
+  await setupWorkspace(page);
+  await openSetup(page);
+  await page.getByLabel("Adet", { exact: true }).fill("2");
+  await page
+    .getByRole("button", { name: "Sepeti kaydet", exact: true })
+    .click();
+  expect((await readWorkspace(page)).discoveries).toEqual(records);
+  await expect(page.locator(".discovery .discovery-record")).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Adresi kaydet", exact: true })
+    .click();
+  await expect(page.locator(".discovery .discovery-record")).toHaveCount(1);
+  await changeAddress(page, "Sentetik B");
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(0);
+  await expect(page.locator(".discovery-history")).toContainText(
+    "Geçmiş restoran keşifleri 1",
+  );
+  await page.reload();
+  await changeAddress(page, "Test adresi · sentetik");
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(0);
+  expect((await readWorkspace(page)).discoveries).toEqual(records);
+  await expect(page.locator(".winner")).toHaveCount(0);
+});
+
+test("keşif ve fiyat aynı kartta birleşir; fiyat hesabı ve karma kayıt silme korunur", async ({
+  page,
+}) => {
+  await changeAddress(page, "Test adresi · sentetik");
+  await addDiscovery(page);
+  await addDiscovery(page, "trendyol-go");
+  await matchDiscoveries(page);
+  await setupWorkspace(page);
+  await addObservation(page, "yemeksepeti", "200");
+  await addObservation(page, "trendyol-go", "180");
+  await expect(page.locator(".restaurant-card")).toHaveCount(1);
+  await expect(page.locator(".discovery .discovery-record")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Karşılaştır", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Karşılaştır", exact: true })
+    .first()
+    .click();
+  await expect(page.locator(".winner .total")).toContainText("205,00");
+  await page.getByText("Gözlem ayrıntıları", { exact: true }).first().click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "Gözlemi sil", exact: true })
+    .first()
+    .click();
+  await expect(page.locator(".restaurant-card")).toHaveCount(1);
+  expect((await readWorkspace(page)).matches).toHaveLength(1);
+  await expect(page.locator(".winner")).toHaveCount(0);
+});
+
+test("keşif eskimesi 30 dakika sonra teslimat kanıtını düşürür; adres geçmişine taşımaz", async ({
+  page,
+}) => {
+  await changeAddress(page, "Test adresi · sentetik");
+  await addDiscovery(page, "yemeksepeti", true);
+  await page.clock.fastForward(31 * 60 * 1000);
+  await expect(page.locator(".discovery-record")).toContainText(
+    "Keşif gözlemi 30 dakikadan eski",
+  );
+  await expect(page.locator(".discovery-record")).toContainText(
+    "güncel teslimat kanıtı değildir",
+  );
+  await expect(page.locator(".discovery-history")).toHaveCount(0);
+  await expect(page.locator(".restaurant-card")).toHaveCount(1);
+  await expect(page.locator(".winner")).toHaveCount(0);
+});
+
+test("keşif MANUAL/DEMO izolasyonu ve dış ağ isteği olmaması", async ({
+  page,
+}) => {
+  const external: string[] = [],
+    errors: string[] = [];
+  page.on("request", (r) => {
+    if (!["127.0.0.1", "localhost"].includes(new URL(r.url()).hostname))
+      external.push(r.url());
+  });
+  page.on("pageerror", (e) => errors.push(e.message));
+  await changeAddress(page, "Test adresi · sentetik");
+  await addDiscovery(page);
+  const manual = await readWorkspace(page);
+  await page
+    .getByRole("button", { name: "Demoyu keşfet", exact: true })
+    .click();
+  await expect(page.locator(".discovery-record")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Restoran gözlemi ekle", exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Demodan çık", exact: true }).click();
+  await expect(page.locator(".discovery .discovery-record")).toHaveCount(1);
+  expect(await readWorkspace(page)).toEqual(manual);
+  expect(external).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test("v1 LocalStorage ve JSON kayıpsız okunur; eski veri yalnız okuma ve v2 kayıtta korunur", async ({
+  page,
+}) => {
+  await setupWorkspace(page);
+  await addObservation(page, "yemeksepeti", "200");
+  await addObservation(page, "trendyol-go", "180");
+  await selectPairAndMatch(page);
+  const current = await readWorkspace(page);
+  const { discoveries: _discoveries, ...rest } = current;
+  const legacy = { ...rest, version: 1 };
+  const raw = JSON.stringify(legacy);
+  await page.evaluate((data) => {
+    localStorage.removeItem("deliverylab.workspace.v2");
+    localStorage.setItem("deliverylab.workspace.v1", data);
+  }, raw);
+  await page.reload();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "v1 kayıtları kayıpsız açıldı" }),
+  ).toBeVisible();
+  await expect(page.locator(".restaurant-card")).toHaveCount(1);
+  expect(
+    await page.evaluate(() => localStorage.getItem("deliverylab.workspace.v2")),
+  ).toBeNull();
+  await addDiscovery(page);
+  expect((await readWorkspace(page)).observations).toEqual(
+    current.observations,
+  );
+  expect((await readWorkspace(page)).matches).toEqual(current.matches);
+  expect(
+    await page.evaluate(() => localStorage.getItem("deliverylab.workspace.v1")),
+  ).toBe(raw);
+  await page.getByLabel("JSON içe aktar", { exact: true }).setInputFiles({
+    name: "synthetic-v1.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(raw),
+  });
+  await page
+    .getByRole("button", {
+      name: "Kayıtları değiştir ve içe aktar",
+      exact: true,
+    })
+    .click();
+  expect(await readWorkspace(page)).toEqual(current);
+  await page
+    .getByRole("button", { name: "Karşılaştır", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Karşılaştır", exact: true })
+    .first()
+    .click();
+  await expect(page.locator(".winner .total")).toContainText("205,00");
+});
+
+test("v2 karma JSON turu ve bozuk dönüşümde mevcut kayıtların korunması", async ({
+  page,
+}) => {
+  await setupWorkspace(page);
+  await addObservation(page, "yemeksepeti", "200");
+  await addDiscovery(page);
+  await changeAddress(page, "Sentetik B");
+  await addDiscovery(page, "trendyol-go");
+  const before = await readWorkspace(page);
+  const downloadPromise = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "JSON dışa aktar ↓", exact: true })
+    .click();
+  const download = await downloadPromise,
+    path = test.info().outputPath("synthetic-v2.json");
+  await download.saveAs(path);
+  expect(JSON.parse(await readFile(path, "utf8"))).toEqual(before);
+  const brokenV1 = { ...before, version: 1 };
+  for (const invalid of [
+    brokenV1,
+    { ...before, discoveries: [{ ...before.discoveries[0], source: "LIVE" }] },
+  ]) {
+    await page.getByLabel("JSON içe aktar", { exact: true }).setInputFiles({
+      name: "invalid.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(invalid)),
+    });
+    await expect(
+      page.getByRole("status").filter({ hasText: "Mevcut kayıtlar korundu" }),
+    ).toBeVisible();
+    expect(await readWorkspace(page)).toEqual(before);
+  }
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByLabel("JSON içe aktar", { exact: true }).setInputFiles(path);
+  await page
+    .getByRole("button", {
+      name: "Kayıtları değiştir ve içe aktar",
+      exact: true,
+    })
+    .click();
+  expect(await readWorkspace(page)).toEqual(before);
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(1);
+  await expect(page.locator(".discovery-history")).toContainText(
+    "Geçmiş restoran keşifleri 1",
+  );
+  await expect(
+    page
+      .locator(".observation-history")
+      .filter({ hasText: "Geçmiş adres gözlemleri" }),
+  ).toContainText("Geçmiş adres gözlemleri 1");
+});
+
+test("bozuk v2 eski v1 ile sessizce değiştirilmez", async ({ page }) => {
+  await setupWorkspace(page);
+  const { discoveries: _discoveries, ...rest } = await readWorkspace(page);
+  const legacy = JSON.stringify({ ...rest, version: 1 });
+  await page.evaluate((raw) => {
+    localStorage.setItem("deliverylab.workspace.v1", raw);
+    localStorage.setItem("deliverylab.workspace.v2", "{broken");
+  }, legacy);
+  await page.reload();
+  await expect(page.getByRole("alert")).toContainText("üzerine yazılmadı");
+  await changeAddress(page, "Sentetik geçici adres");
+  await addDiscovery(page);
+  expect(
+    await page.evaluate(() => localStorage.getItem("deliverylab.workspace.v2")),
+  ).toBe("{broken");
+  expect(
+    await page.evaluate(() => localStorage.getItem("deliverylab.workspace.v1")),
+  ).toBe(legacy);
+  await expect(page.locator(".discovery-record")).toHaveCount(1);
+});
+
+test("diğer platformun kaydı geçmişte kalsa da şube onayı geri alınabilir", async ({
+  page,
+}) => {
+  await changeAddress(page, "Test adresi · sentetik");
+  await addDiscovery(page);
+  await addDiscovery(page, "trendyol-go");
+  await matchDiscoveries(page);
+  await changeAddress(page, "Sentetik B");
+  await addDiscovery(page);
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(1);
+  await expect(page.locator(".discovery .restaurant-card")).toContainText(
+    "Diğer platform: Doğrulanmadı",
+  );
+  await page
+    .getByRole("button", { name: "Şube eşleştirmesini geri al", exact: true })
+    .click();
+  expect((await readWorkspace(page)).matches).toEqual([]);
+  expect((await readWorkspace(page)).discoveries).toHaveLength(3);
 });

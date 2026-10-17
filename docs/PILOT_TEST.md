@@ -1,4 +1,4 @@
-# Faz 1B — Manuel saha denemesi
+# Faz 1C — Manuel keşif ve fiyat saha denemesi
 
 Amaç, iki platformda **kullanıcının kendisinin gördüğü** bilgileri DeliveryLab'e
 girerek sepet hesabını ve kullanım akışını kontrol etmektir. Bu belge sonuç
@@ -15,7 +15,51 @@ Uygulamada canlı entegrasyon yoktur. DEMO ve otomatik testler sentetik veridir.
 **A'nın PASS olması B'yi PASS yapmaz.** Manuel kayıt bir sağlayıcı doğrulaması,
 otomatik erişim kanıtı veya gelecekte aynı adrese teslimat garantisi değildir.
 
-## Deneme adımları
+## Sepetsiz restoran keşfi senaryosu
+
+Bu kontrol fiyat karşılaştırmasından bağımsızdır; gerçek gözlemle henüz
+yapılmadı (**NOT RUN**). Önce yerel uygulamayı README'deki komutlarla açın.
+
+1. MANUAL modunda tek adresi kaydedin; hedef sepeti boş bırakın. Önceden dolu
+   çalışma alanınız varsa özel JSON yedeği alın ve ayrı tarayıcı profilini kullanın.
+2. İki hedef platformdan birinde bu adres seçiliyken gördüğünüz restoranın
+   fiziksel şubesini “Restoran gözlemi ekle” ile kaydedin. Gerçek gözlem zamanını
+   girin; ürün, fiyat ve ücret girmeyin.
+3. Yalnız listede gördüyseniz “Yalnız listelenme gözlendi” seçin. Teslimatı ayrıca
+   kontrol ettiyseniz ikinci seçeneği kullanıp platformda gördüğünüz ek bilgiyi
+   açıklayın. Listelenmeyi teslimat kanıtı saymayın; sipariş vermeyin.
+4. Kartta “Sepet fiyatı bulunmuyor” ve “Diğer platform: Doğrulanmadı” görünmeli.
+   Diğer platforma ilişkin kayıt oluşturmak zorunda değilsiniz; bu durum yokluk
+   kanıtı değildir. Fiyat kazananı çıkmamalıdır.
+5. İkinci platformda aynı fiziksel şubeyi kendiniz görürseniz ayrı kayıt ekleyin.
+   Kartlar otomatik birleşmemeli. Şube eşleştirme alanında iki şubeyi seçip açık
+   onay verin; birleşmeyi ve onayı geri alınca yeniden ayrılmayı kontrol edin.
+6. Deneme kopyasında sepet ekleyip değiştirin: restoran keşfi korunmalı. Adresi
+   değiştirin: kayıt “Geçmiş restoran keşifleri” alanına ayrılmalı. Eski adres
+   etiketine dönmek kaydı güncel yapmamalı. 30 dakikadan eski keşif kaydı yeniden
+   kontrol uyarısı taşımalı; teslimat garantisi gibi sunulmamalı.
+7. Özel JSON yedeğinde keşif ve varsa fiyat kayıtlarının birlikte korunduğunu
+   kontrol edin. Bu sonuç otomatik platform erişimi için PASS değildir.
+
+Boş keşif kontrolü (depo dışındaki özel notta doldurun):
+
+| Alan | Kullanıcının kaydı |
+| --- | --- |
+| Tarih / saat / saat dilimi | |
+| Özel adres referansı (tam adres yazmayın) | |
+| Platform / restoran / fiziksel şube | |
+| Listelenme mi, ayrıca teslimat doğrulaması mı? | |
+| Varsa ek teslimat gözleminin açıklaması | |
+| Diğer platform için gözlem var mı? Yoksa doğrulanmadı mı? | |
+| Sepetsiz kayıt / fiyat yokluğu / kazanan çıkmaması | |
+| Şube onayı / geri alma | |
+| Sepet değişimi / adres geçmişi / JSON kontrolü | |
+| MANUAL FIELD CHECK — keşif sonucu ve gerekçesi | |
+
+Kişisel adres, koordinat, hesap bilgisi, kupon kodu veya ekran görüntüsünü
+depoya eklemeyin. Şablon boş kalmalıdır.
+
+## Sepet fiyatı deneme adımları
 
 1. `npm ci`, ardından `npm run dev` çalıştırın; `http://127.0.0.1:5173` adresini
    açın. DEMO açıksa çıkın. Önceden kayıt varsa JSON dışa aktararak özel bir
@@ -30,7 +74,7 @@ otomatik erişim kanıtı veya gelecekte aynı adrese teslimat garantisi değild
 4. Aynı ürün, porsiyon/boy, seçenekler ve adetlerle tek bir hedef sepet kaydedin.
    Ürün eşdeğerliği belirsizse eşitmiş gibi adlandırmayın. İki platformda aynı
    sepetin sunulduğunu ayrıca kontrol edin.
-5. Her platform için “Gözlem ekle”yi kullanın. Birim ürün fiyatlarını, teslimatı,
+5. Her platform için “Sepet fiyatı gözlemi ekle”yi kullanın. Birim ürün fiyatlarını, teslimatı,
    hizmet ve diğer zorunlu ücretlerin toplamını, indirim tutarı/uygunluğunu ve
    minimum sepet koşulunu kaydedin. Minimumun indirim öncesi mi sonrası mı
    uygulandığını belirtin. **Bilinmeyen ücret/minimumu boş bırakın; 0 yalnız
@@ -100,11 +144,14 @@ otomatik test fikstürüne eklenmez. DeliveryLab şifre istemez; hesap bağlamaz
 
 ## Sonucun değerlendirilmesi
 
-A için PASS, iki gerçek gözlemin aynı adres/şube/sepet/zaman koşullarını sağlaması,
+A'nın fiyat senaryosu için PASS, iki gerçek gözlemin aynı adres/şube/sepet/zaman koşullarını sağlaması,
 iki görülen nihai toplamın hesapla eşleşmesi ve eksik/farklı girdilerin kazanan
 üretmemesiyle verilebilir. Kontrol tamamlanmadıysa NOT RUN ve eksik adımı yazın;
 beklenen davranışla çelişki varsa FAIL ve kişisel veri içermeyen hata açıklaması
-yazın. Başka cihaz veya tarayıcıda denenmediyse denendiğini iddia etmeyin.
+yazın. Keşif senaryosunu ayrı değerlendirin: sepetsiz kayıt, kanıt düzeyleri,
+doğrulanmamış diğer platform, onay/geri alma ve veri koruma kontrol edilmeli.
+Keşif PASS, fiyat senaryosunu PASS yapmaz. Başka cihaz veya tarayıcıda
+denenmediyse denendiğini iddia etmeyin.
 
 B ayrı izin ve teknik erişim kanıtı gerektirir. Bu pilot otomatik platform
 erişimi, scraping, hesap bağlama, sipariş veya ödeme denemesi içermez.
