@@ -166,8 +166,10 @@ kupon hesabı senkronizasyonu, otomatik platform girişi, market karşılaştır
 birden fazla restorandan birleşik sepet, çoklu ödeme, bildirimler, abonelik/reklam
 ve kapsamlı animasyon/görsel süsleme. Bu liste geliştirme yetkisi vermez.
 
-Bu fazda backend, mikroservis, büyük veritabanı, Kubernetes, bulut ve AI API'si
-gereksiz karmaşıklık/maliyet nedeniyle kullanılmaz. Yetkisiz scraping/API kullanımı
+Uygulama barındırmak için backend, mikroservis, büyük veritabanı, Kubernetes,
+bulut ve AI API'si gereksiz karmaşıklık/maliyet nedeniyle kullanılmaz.
+Faz 1D'deki ücretsiz GitHub test runner'ı uygulama hosting'i değildir.
+Yetkisiz scraping/API kullanımı
 ise kullanıcının açık sınırlarına aykırıdır.
 Süreçte yalnızca özel sohbet geçmişine dayanmak ve ortak politikayı iki ayrı
 dosyada çoğaltmak, agentler arası devamlılık ve tutarlılık gereği tercih edilmiyor.

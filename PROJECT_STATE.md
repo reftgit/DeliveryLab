@@ -4,17 +4,17 @@ Son kayıt tarihi: 2026-10-18 (Europe/Istanbul).
 
 ## Aşama ve mevcut hedef
 
-- Aşama: Faz 1D GitHub Actions test altyapısı eklendi; gerçek GitHub koşumunun
-  doğrulanması bekleniyor. Faz 1C sepetsiz MANUAL keşif ve v2 kayıt modeli korunur.
-- Mevcut hedef: sentetik testleri kullanıcı bilgisayarından bağımsız çalıştırıp
-  GitHub üzerinden incelenebilir kılmak. Gerçek saha denemesi henüz yapılmadı.
+- Aşama: Faz 1D GitHub Actions test altyapısı gerçek başarılı koşumla doğrulandı.
+  Faz 1C sepetsiz MANUAL keşif ve v2 kayıt modeli korunur.
+- Sentetik testler kullanıcı bilgisayarından bağımsız çalışır ve GitHub'dan
+  incelenebilir. Gerçek saha denemesi ve canlı entegrasyon henüz yapılmadı.
 - React/TypeScript/Vite uygulaması, LocalStorage, JSON aktarımı ve otomatik
   testler ve CI workflow mevcut. Backend, deploy, hesap bağlama veya sipariş/ödeme yok.
 
 | Kabul alanı | Durum | Kanıt / sınır |
 | --- | --- | --- |
 | LOCAL_APP | PASS | Temiz kurulum, build, localhost HTTP 200, masaüstü/dar ekran akışları |
-| GITHUB_ACTIONS_CI | NOT RUN | Workflow eklendi; push sonrası tamamlanmış gerçek koşum henüz doğrulanmadı |
+| GITHUB_ACTIONS_CI | PASS | [39112050564](https://github.com/reftgit/DeliveryLab/actions/runs/39112050564), 5973a75, completed/success; 109 birim + 50 E2E, build başarılı |
 | LIVE_DISCOVERY | BLOCKED | İki sağlayıcıdan aynı adres için yetkili gerçek keşif yapılmadı |
 | LIVE_COMPARISON | BLOCKED | İki sağlayıcıdan karşılaştırılabilir canlı sepet alınmadı |
 | MANUAL_COMPARISON | PASS | Manuel giriş ve matematiksel akış sentetik QA girdileriyle geçti; iki gerçek gözlemle saha kontrolü NOT RUN |
@@ -83,6 +83,12 @@ Faz 1D başlangıcı: `2b66c8193b5b530c125f9477601ef3b4e0a912ee`, `main`.
 Yalnız `.vscode/` izlenmiyordu; SHA-256 yukarıdakiyle aynıydı. GitHub API'sinde
 depo `public`, mevcut Actions koşum sayısı 0 olarak doğrulandı.
 
+Faz 1D uygulama commit'i: `5973a75c0c6be93bbfd623c665748b6b8965fc1b`
+(`ci: run synthetic unit and browser tests on GitHub Actions`). Normal push
+başarılı; uzak `refs/heads/main` aynı hash olarak doğrulandı. Aşağıdaki gerçek
+koşum bu commit'i test etti. Bu kanıtı kaydeden sonraki belge commit'i de aynı
+workflow'u tetikler; en güncel HEAD/run durumunu GitHub'dan ayrıca kontrol edin.
+
 ## Mevcut içerik
 
 - `AGENTS.md`: başlangıç okuma sırası, kapsam ve doğrulama disiplini, kalıcı bilgi,
@@ -145,10 +151,30 @@ Yerel doğrulama: macOS, Node.js 26.8.1, npm 11.19.0, geçici Chrome profilleri.
 - PASS — `actionlint .github/workflows/ci.yml` (1.7.12; resmî binary SHA-256
   doğrulandı), `git diff --check`, diff/kapsam/gizli bilgi incelemesi.
   `.vscode/settings.json` SHA-256 değeri değişmedi. Geçici hata testi kaldırıldı.
-- Gerçek GitHub Actions sonucu: NOT RUN. Push sonrasında ilgili commit'in
-  run URL'si, tamamlanma durumu ve tüm adımları ayrıca doğrulanacak.
 - Ücretli servis, gerçek platform isteği, hesap, ödeme, kişisel adres veya
   deploy kullanılmadı. Canlı/saha/gerçek cihaz sonuçları değişmedi.
+
+Gerçek GitHub doğrulaması — **PASS**:
+
+- [Workflow run 39112050564](https://github.com/reftgit/DeliveryLab/actions/runs/39112050564),
+  event `push`, dal `main`, SHA `5973a75c0c6be93bbfd623c665748b6b8965fc1b`.
+  API sonucu `status: completed`, `conclusion: success`; tamamlanma
+  2026-10-18 08:37:38 UTC (11:37:38 Europe/Istanbul).
+- [İş ve adım günlükleri](https://github.com/reftgit/DeliveryLab/actions/runs/39112050564/job/117630078887)
+  ayrıca okundu. Ortam: GitHub-hosted Ubuntu 24.04, Node.js 24.21.0,
+  npm 11.19.0, Google Chrome 155.0.8059.84; token `contents: read`.
+- PASS — `npm ci`: lockfile kurulumu, 0 güvenlik açığı.
+- PASS — `npm test`: domain 66 + context 17 + discovery 26 = **109/109**.
+- PASS — `npm run build`: TypeScript ve Vite derlemesi.
+- PASS — `npx --no-install playwright install --with-deps chrome`:
+  Chrome ve Linux sistem bağımlılıkları kuruldu.
+- PASS — `npm run test:e2e`: **50/50**, 1.3 dakika; masaüstü 25, dar ekran 25.
+- Artifact API listesi boş; upload adımı beklenen şekilde `skipped`.
+  Başarılı koşumda hata raporu üretilmedi/yüklenmedi. Adım günlükleri GitHub'da.
+- Hata raporunun PNG/trace üretimi yerel kontrollü hata denemesinde doğrulandı;
+  GitHub'da başarısız koşum/upload yolu ayrıca tetiklenmedi. Elle tetikleme
+  YAML'da mevcut ve actionlint ile doğrulandı; GitHub arayüzünden elle çalıştırma
+  ayrıca denenmedi. Bunlar tamamlanmış push koşumunun kanıtından ayrıdır.
 
 ## Faz 1C uygulaması ve doğrulama kanıtları
 
