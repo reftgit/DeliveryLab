@@ -45,6 +45,55 @@ Masaüstü 1365×1000 ve dar ekran 375×812 projeleri çalışır. Ekran görün
 hata izleri Git'e alınmayan `test-results/` içindedir. Gerçek mobil cihaz testi
 yerine tarayıcı viewport testi yapılır. E2E sırasında dış HTTP istekleri engellenir.
 
+## GitHub üzerinde otomatik testler
+
+[DeliveryLab CI — Actions](https://github.com/reftgit/DeliveryLab/actions/workflows/ci.yml)
+ekranında her `main` push'u için bir koşum görünür. Bilgisayarınızın açık olması
+gerekmez. Elle başlatmak için aynı ekranda **Run workflow → main → Run workflow**
+seçin (depoya yazma yetkisi gerekir).
+
+Workflow dosyası [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Standart GitHub-hosted `ubuntu-24.04`, `package.json` ile uyumlu Node.js 24 LTS ve
+Chrome kullanır. Sıra: `npm ci` → `npm test` → `npm run build` → Chrome/sistem
+bağımlılıklarının kurulumu → `npm run test:e2e`. Ayrı test servisi, self-hosted
+veya ücretli büyük runner kullanılmaz. Herkese açık bu depoda standart runner
+kullanımı [GitHub'ın ücretsiz kullanım kapsamındadır](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+Cache saklanmaz; yalnız E2E hatasında 7 günlük artifact yüklenir.
+
+- Koşumu açıp **Unit, build and E2E** işinin adımlarına tıklayın. Kurulum,
+  birim testleri, TypeScript/build ve tarayıcı testleri ayrı günlüklerde görünür.
+- Yeşil **Success**, koşumun tamamlandığını ve gerekli adımların geçtiğini
+  gösterir. Kırmızı **Failure** durumunda ilk başarısız adımın günlüğünü okuyun.
+  Daha sonraki adımlar atlanmış olabilir; **Skipped** başarılı test değildir.
+  Sarı devam eden/bekleyen veya iptal edilmiş koşum için PASS denmez. Aynı dalda
+  yeni koşum başladığında önceki devam eden koşum iptal edilir.
+- E2E başarısızsa koşumun **Summary → Artifacts** alanından
+  `playwright-failure-<run_id>-<attempt>` indirilir. ZIP'i açınca `index.html`,
+  hata ekran görüntüleri ve trace ekleri bulunur. Çıkarılan rapor klasörünü
+  `npx --no-install playwright show-report /rapor/klasoru` ile açın; başarısız
+  testin **Screenshots** ve **Traces** eklerini inceleyin. İndirme için GitHub
+  oturumu/depo okuma erişimi gerekebilir. Artifact 7 gün sonra silinir.
+  Tarayıcı başlayamadıysa ekran görüntüsü/trace oluşmayabilir; adım günlüğü kalır.
+  Başarılı koşumlarda artifact olmaması beklenir. Birim/build/kurulum hataları
+  ilgili Actions adım günlüğünden incelenir.
+
+ChatGPT Reviewer ile yukarıdaki workflow bağlantısını ve incelenecek koşumun
+`https://github.com/reftgit/DeliveryLab/actions/runs/<run_id>` bağlantısını,
+commit SHA'sını ve varsa başarısız adım/artifact adını paylaşın. Genel Actions
+listesi tek başına hangi commit'in test edildiğini kanıtlamaz; koşumun commit'i,
+**completed** durumu ve **success/failure** sonucu birlikte kontrol edilir.
+Reviewer'ın artifact erişimi yoksa sentetik raporu indirip paylaşabilirsiniz.
+
+CI yalnız depodaki sentetik test girdilerini ve geçici Chrome profillerini
+kullanır. Test sayfalarının localhost dışı HTTP istekleri engellenir; gerçek
+teslimat platformlarına istek, hesap, API anahtarı, ödeme veya kişisel adres
+kullanılmaz. Bağımlılık/Chrome kurulumu internetten indirme yapar. Artifact
+kapsamı yalnız Playwright raporudur; `.env`, çalışma alanı, kişisel JSON,
+`node_modules` ve build çıktısı yüklenmez. Yeni testlerde de gerçek veri veya
+sır kullanılmamalıdır. Bu testler **gerçek cihaz veya canlı API testi değildir**;
+dar ekran Chrome emülasyonudur. Build internete yayımlanmaz; CI başarısı canlı
+keşif, gerçek teslimat veya ödeme doğrulaması anlamına gelmez.
+
 ## Kullanım
 
 1. İlk açılış boştur. Adres etiketini kaydedin; koordinat isteğe bağlıdır.

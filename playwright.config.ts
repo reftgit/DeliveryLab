@@ -4,7 +4,8 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   workers: 2,
-  reporter: "list",
+  forbidOnly: !!process.env.CI,
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: "http://127.0.0.1:5173",
     channel: "chrome",
@@ -25,6 +26,6 @@ export default defineConfig({
   webServer: {
     command: "npm run dev",
     url: "http://127.0.0.1:5173",
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI,
   },
 });

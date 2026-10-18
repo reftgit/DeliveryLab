@@ -1,6 +1,6 @@
 # DeliveryLab — Kararlar ve gelecek planları
 
-Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
+Son kayıt tarihi: 2026-10-18 (Europe/Istanbul).
 
 Bu belge kararları ve planları saklar. Gerçek implementasyon ve doğrulama durumu
 `PROJECT_STATE.md` içindedir; aşağıdaki planlar tamamlanmış özellikler değildir.
@@ -122,6 +122,33 @@ Uygulama tercihleri (ürün gereksinimi değil, Faz 1 uygulama politikası):
   katı şema, toplam 1 MB/500 kayıt sınırı ve değiştirmeden önce onay korunur.
 - Çalışan LIVE adapter yok; iki platformun mevcut kayıtları için gerçek yerel
   adapterler ve hata izolasyonu vardır. Üçüncü sağlayıcı araştırılmadı/eklenmedi.
+
+## Faz 1D otomatik test kararı ve gerekçeleri
+
+Faz 1D ile kullanıcı bilgisayarından bağımsız sentetik testler için GitHub
+Actions onaylandı ve `.github/workflows/ci.yml` eklendi. Bu, uygulama hosting'i
+veya canlı sağlayıcı erişimi kararı değildir. Doğrulanmış koşumlar ve eksikler
+`PROJECT_STATE.md` içinde tutulur.
+
+- Her `main` push'u ve elle `workflow_dispatch` aynı tam test dizisini çalıştırır.
+  Standart GitHub-hosted `ubuntu-24.04` kullanılır; herkese açık depoda ücretsizdir.
+  Ücretli/büyük/self-hosted runner, üçüncü taraf test servisi veya deploy yoktur.
+- Node.js 24 LTS, mevcut `engines` aralığını karşılar. `npm ci` lockfile'ı kullanır;
+  ardından birim testleri, TypeScript/build ve iki viewport'ta Chrome E2E koşar.
+  Chrome ile sistem bağımlılıkları Playwright CLI üzerinden kurulur.
+- Testler ve 2 worker davranışı korunur. CI'da `.only` yasaktır ve önceden açık
+  sunucu tekrar kullanılmaz; yanlış uygulamanın test edilmesi engellenir.
+  HTML raporu yalnız CI'da üretilir; retry eklenmez veya hata maskelenmez.
+- GitHub action sürümleri commit SHA'sına sabitlenir; token izni `contents: read`,
+  checkout kimlik bilgisini kalıcı bırakmaz. Özel secret veya kullanıcı verisi
+  enjekte edilmez. Testler yalnız sentetik veri ve geçici profiller kullanır;
+  mevcut localhost dışı sayfa HTTP engeli korunur.
+- Yalnız E2E hatasında HTML raporu ve içindeki hata screenshot/trace ekleri
+  7 gün saklanır. Başarılı ekran görüntüleri, JSON dışa aktarımları, çalışma alanı
+  ve build artifact olarak yüklenmez. Cache kapalıdır; gereksiz saklama önlenir.
+  İş 15 dakika ile sınırlıdır; aynı dalın yeni koşumu eskisini iptal eder.
+- CI PASS yalnız GitHub'da ilgili commit'in tamamlanmış başarılı koşumuyla
+  verilir. Bu sonuç gerçek cihaz, saha, canlı API veya sipariş kanıtı değildir.
 
 ## Planlanan ve kararlaştırılmış ama uygulanmamış işler
 

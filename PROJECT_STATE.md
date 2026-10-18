@@ -1,19 +1,20 @@
 # DeliveryLab — Doğrulanmış proje durumu
 
-Son kayıt tarihi: 2026-10-17 (Europe/Istanbul).
+Son kayıt tarihi: 2026-10-18 (Europe/Istanbul).
 
 ## Aşama ve mevcut hedef
 
-- Aşama: Faz 1C sepetsiz MANUAL restoran keşfi ve v1 uyumlu v2 kayıt modeli
-  uygulandı. Gerçek saha denemesi henüz yapılmadı.
-- Mevcut hedef: iki gerçek kullanıcı gözlemiyle manuel saha doğrulamasına hazır
-  olmak. Canlı entegrasyon izin/kapsam engelleri nedeniyle kurulmadı.
+- Aşama: Faz 1D GitHub Actions test altyapısı eklendi; gerçek GitHub koşumunun
+  doğrulanması bekleniyor. Faz 1C sepetsiz MANUAL keşif ve v2 kayıt modeli korunur.
+- Mevcut hedef: sentetik testleri kullanıcı bilgisayarından bağımsız çalıştırıp
+  GitHub üzerinden incelenebilir kılmak. Gerçek saha denemesi henüz yapılmadı.
 - React/TypeScript/Vite uygulaması, LocalStorage, JSON aktarımı ve otomatik
-  testler mevcut. Backend, CI/deploy, hesap bağlama veya sipariş/ödeme yok.
+  testler ve CI workflow mevcut. Backend, deploy, hesap bağlama veya sipariş/ödeme yok.
 
 | Kabul alanı | Durum | Kanıt / sınır |
 | --- | --- | --- |
 | LOCAL_APP | PASS | Temiz kurulum, build, localhost HTTP 200, masaüstü/dar ekran akışları |
+| GITHUB_ACTIONS_CI | NOT RUN | Workflow eklendi; push sonrası tamamlanmış gerçek koşum henüz doğrulanmadı |
 | LIVE_DISCOVERY | BLOCKED | İki sağlayıcıdan aynı adres için yetkili gerçek keşif yapılmadı |
 | LIVE_COMPARISON | BLOCKED | İki sağlayıcıdan karşılaştırılabilir canlı sepet alınmadı |
 | MANUAL_COMPARISON | PASS | Manuel giriş ve matematiksel akış sentetik QA girdileriyle geçti; iki gerçek gözlemle saha kontrolü NOT RUN |
@@ -77,6 +78,11 @@ v1/v2 veri uyumluluğu, testler ve güncel pilot belgeleri bu commit'tedir.
 Sonraki belge commit'i devir referansını kaydeder; güncel HEAD/push durumunu
 Git'ten doğrulayın. `.vscode/` ve özel/test verileri commit dışında tutuldu.
 
+Faz 1D başlangıcı: `2b66c8193b5b530c125f9477601ef3b4e0a912ee`, `main`.
+`git fetch origin` sonrası HEAD/upstream/`origin/main` aynıydı (0/0).
+Yalnız `.vscode/` izlenmiyordu; SHA-256 yukarıdakiyle aynıydı. GitHub API'sinde
+depo `public`, mevcut Actions koşum sayısı 0 olarak doğrulandı.
+
 ## Mevcut içerik
 
 - `AGENTS.md`: başlangıç okuma sırası, kapsam ve doğrulama disiplini, kalıcı bilgi,
@@ -98,10 +104,51 @@ Git'ten doğrulayın. `.vscode/` ve özel/test verileri commit dışında tutuld
   LocalStorage görünür uyarı verir, bozuk içerik sessizce ezilmez.
 - `package.json`, lockfile ve Vite/TypeScript/Playwright ayarları: yerel çalıştırma,
   build ve testler. `.gitignore` runtime çıktıları ve özel dışa aktarımı dışlar.
-- `README.md`: kurulum/kullanım/test komutları ve kayıt sınırlamaları.
+- `.github/workflows/ci.yml`: main push ve elle tetiklenen, standart Linux runner
+  üzerinde kurulum/birim/build/Chrome E2E; yalnız hata halinde 7 günlük rapor.
+- `README.md`: kurulum/kullanım/test komutları, Actions ve Reviewer rehberi.
 - `docs/FEASIBILITY.md`: tarihli, kaynaklı platform erişim değerlendirmesi.
 - `docs/PILOT_TEST.md`: gerçek gözlemler için uygulanabilir adımlar, boş kontrol
   şablonları; sepetsiz keşif ve fiyat senaryoları, otomatik erişimden ayrı sonuçlar.
+
+## Faz 1D CI uygulaması ve doğrulama kanıtları
+
+Workflow: [DeliveryLab CI](https://github.com/reftgit/DeliveryLab/actions/workflows/ci.yml).
+`ubuntu-24.04`, Node.js 24 LTS, salt okunur depo izni, SHA ile sabit action'lar,
+15 dakika sınırı ve aynı dal için eski koşumu iptal etme. Cache veya deploy yok.
+`npm ci`, `npm test`, `npm run build`,
+`npx --no-install playwright install --with-deps chrome`, `npm run test:e2e`
+sırasıyla çalışır. Uygulama kodu, bağımlılıklar ve kalıcı test senaryoları değişmedi.
+
+CI'da Playwright `.only` reddedilir, mevcut sunucu tekrar kullanılmaz ve list
+günlüğüne ek HTML rapor oluşturulur. 2 worker, iki viewport, hata screenshot'u
+ve `retain-on-failure` trace davranışı korunur. Yalnız E2E hatasında
+`playwright-report/` yüklenir; HTML içindeki `data/` hata eklerini de taşır.
+Başarılı koşumda artifact yüklenmez. README günlük/rapor okuma ve paylaşma
+adımlarını, sentetik veri ve gerçek cihaz/canlı API ayrımını açıklar.
+
+Yerel doğrulama: macOS, Node.js 26.8.1, npm 11.19.0, geçici Chrome profilleri.
+
+- PASS — `npm ci`: temiz kurulum, 0 güvenlik açığı; opsiyonel fsevents script
+  uyarısı için güvenlik ayarı değiştirilmedi.
+- PASS — `npm test`: 109/109; `npm run build`: TypeScript ve Vite geçti.
+- PASS — `CI=true npm run test:e2e -- --config=ci-local-check.config.ts`:
+  50/50, 26.4 saniye; aynı CI ayarları ve testler, yalnız yerel port 5174.
+  Geçici config doğrulama sonunda kaldırıldı.
+- PASS — geçici sentetik hata denemesi beklenen çıkış kodu 1 üretti. HTML
+  raporunun `data/` alanında 1 PNG ve 1 trace ZIP bulundu; trace içindeki 27 HTTP
+  kaydının tamamı loopback adresiydi. Sentetik JSON dışa aktarımları rapora girmedi.
+  Bu bir ürün testi hatası değildir; geçici hata senaryosu Git'e alınmaz.
+- Başlangıçtaki yerel 5173 sunucusu korundu; CI'nın sunucu tekrar kullanmama
+  koruması bu portta beklenen şekilde durdu. Yerel CI kontrolü geçici config
+  ile 5174'te yapıldı; gerçek GitHub workflow temiz runner'da 5173 kullanır.
+- PASS — `actionlint .github/workflows/ci.yml` (1.7.12; resmî binary SHA-256
+  doğrulandı), `git diff --check`, diff/kapsam/gizli bilgi incelemesi.
+  `.vscode/settings.json` SHA-256 değeri değişmedi. Geçici hata testi kaldırıldı.
+- Gerçek GitHub Actions sonucu: NOT RUN. Push sonrasında ilgili commit'in
+  run URL'si, tamamlanma durumu ve tüm adımları ayrıca doğrulanacak.
+- Ücretli servis, gerçek platform isteği, hesap, ödeme, kişisel adres veya
+  deploy kullanılmadı. Canlı/saha/gerçek cihaz sonuçları değişmedi.
 
 ## Faz 1C uygulaması ve doğrulama kanıtları
 
