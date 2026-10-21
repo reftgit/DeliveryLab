@@ -1,6 +1,6 @@
 # DeliveryLab — Kararlar ve gelecek planları
 
-Son kayıt tarihi: 2026-10-18 (Europe/Istanbul).
+Son kayıt tarihi: 2026-10-21 (Europe/Istanbul).
 
 Bu belge kararları ve planları saklar. Gerçek implementasyon ve doğrulama durumu
 `PROJECT_STATE.md` içindedir; aşağıdaki planlar tamamlanmış özellikler değildir.
@@ -95,14 +95,16 @@ Uygulama tercihleri (ürün gereksinimi değil, Faz 1 uygulama politikası):
 - Keşif ve seçilebilir karşılaştırma yalnız mevcut adres bağlamının kayıtlarını
   kullanır. Diğer adres gözlemleri aynı JSON/LocalStorage içinde silinmeden
   tutulur; ayrı, salt okunur “Geçmiş adres gözlemleri” bölümünden incelenir.
-  Kaynak izolasyonu ve kullanıcı şube eşleştirmeleri korunur. Şube onayı fiziksel
-  şube içindir; başka adreste teslimat veya fiyat geçerliliği onayı değildir.
+  Kaynak izolasyonu ve kullanıcı şube eşleştirmeleri korunur. Faz 1E ile şube
+  onayı adres bağlamına da bağlıdır; başka adreste otomatik şube eşitliği,
+  teslimat veya fiyat geçerliliği onayı değildir.
 - Adres geçmişi fiyat eskimesinden ayrıdır: aynı adresin 30 dakikayı geçen veya
   eski sepeti kullanan gözlemi keşifte kalır, karşılaştırma nedenini gösterir ve
   kazanan olamaz. Değişikliksiz kaydetmek gözlem zamanını yenilemez. 30 dakika
   sağlayıcı garantisi değil muhafazakâr laboratuvar eşiğidir.
-- Şube kimliği kaynak/platform/restoran/şube bileşimidir. Platformlar arası
-  isimden otomatik eşleştirme yok; açık kullanıcı onayı gerekir.
+- Şube kimliği kaynak/platform/restoran/şube ile adres revizyonu, normalize
+  adres etiketi ve tam koordinatların bileşimidir. Platformlar arası isimden
+  otomatik eşleştirme yok; aynı adres kapsamında açık kullanıcı onayı gerekir.
 - Keşif kaydı yalnız MANUAL; platform/restoran/fiziksel şube/adres/bağlantı/zaman
   taşır. Listelenme ile ayrıca teslimat doğrulaması ayrıdır. İkincisi ek teslimat
   gözleminin kısa açıklamasını gerektirir; bu yine kullanıcı beyanıdır. Fiyat veya
@@ -111,7 +113,7 @@ Uygulama tercihleri (ürün gereksinimi değil, Faz 1 uygulama politikası):
   geçmiş bölümleri kullanılır; eski kayıtlar otomatik canlandırılmaz.
 - Fiyatsız şube eşleştirmesi de açık onay ve geri alma ister. Eşleştirme iki
   kayıt türünün ortak şube kimliğine bağlıdır; bir türde kayıt silinip diğerinde
-  aynı şube kalırsa onay korunur. Onay, başka adrese teslimat kanıtı değildir.
+  aynı şube aynı adres kapsamında kalırsa onay korunur. Onay başka adrese taşınmaz.
 - Minimum koşulun indirim öncesi/sonrası temeli ayrı tutulur. İndirim uygunluğu
   belirsizse karşılaştırma engellenir; ürün toplamını aşan indirim desteklenmez.
 - İçe aktarılan LIVE/DEMO iddiası kabul edilmez; yalnız MANUAL kayıt taşınabilir.
@@ -149,6 +151,29 @@ veya canlı sağlayıcı erişimi kararı değildir. Doğrulanmış koşumlar ve
   İş 15 dakika ile sınırlıdır; aynı dalın yeni koşumu eskisini iptal eder.
 - CI PASS yalnız GitHub'da ilgili commit'in tamamlanmış başarılı koşumuyla
   verilir. Bu sonuç gerçek cihaz, saha, canlı API veya sipariş kanıtı değildir.
+
+## Faz 1E doğruluk ve dayanıklılık kararları
+
+- Yeni ürün özelliği yerine testlerle kanıtlanan hatalar düzeltildi. Adresler
+  arasında genel isim anahtarının taşınması yanlış birleştirme oluşturduğundan
+  şube onayı bağlama sınırlandı. Aynı adreste fiyat/keşif birlikteliği korunur.
+- v1 → v2 okuma devam eder. Eski v1/v2 onayları tek ortak adres varsa o adrese
+  dönüştürülür. Kapsamı belirsiz onaylar eski anahtarlarıyla `unscoped: true`
+  olarak saklanır; aktif adresten veya kayıt sırasından kapsam tahmin edilmez.
+  Bir kez belirsiz kalan onay, kayıt silme/yeniden içe aktarmayla canlanmaz;
+  mevcut eşleştirme akışından ayrı açık onay gerekir. Kayıtlar silinmez.
+- JSON sürümü 2 ve LocalStorage anahtarı korunur; eşleştirme anahtarının içeriği
+  genişler. Yeni biçim eski uygulamayla geriye uyumlu değildir. Okuma sırasında
+  ham depolama değişmez; ilk başarılı kayıtta yazılır, v1 yedeği korunur.
+- Hatalı veya sıra dışı tamamlanan dosya okumaları önceki dosyanın içe aktarma
+  onayını yeniden açamaz. Başarısız içe aktarma mevcut kayıtları değiştirmez.
+- Çok sekmede sessiz veri ezme kanıtlandı. Yazmadan önce son okunan/yazılan
+  ham kayıt kontrol edilir; değişmişse disk korunur, düzenleme oturumda ve JSON
+  dışa aktarma için saklanır. Otomatik birleştirme veya atomik yazma eklenmedi;
+  eşzamanlı işlemler için tam çatışma çözümü iddiası yoktur. Düzenleme tek
+  sekmede yapılmalıdır. Mevcut açık onaylı değiştirme eylemi korunur.
+- Para hesabı yeni sınır testlerini geçti; hesaplama politikası değiştirilmedi.
+  Canlı API, ücretli servis veya gerçek hesap/sipariş testleri eklenmedi.
 
 ## Planlanan ve kararlaştırılmış ama uygulanmamış işler
 

@@ -52,15 +52,17 @@ export function sameBranch(
   b: RestaurantRecord,
   matches: BranchMatch[],
 ): boolean {
-  if (a.source !== b.source) return false;
+  if (a.source !== b.source || !sameDeliveryContext(a.context, b.context))
+    return false;
   const left = branchKey(a),
     right = branchKey(b);
   return (
     left === right ||
     matches.some(
       (m) =>
-        (m.left === left && m.right === right) ||
-        (m.left === right && m.right === left),
+        !m.unscoped &&
+        ((m.left === left && m.right === right) ||
+          (m.left === right && m.right === left)),
     )
   );
 }

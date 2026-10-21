@@ -786,7 +786,14 @@ test("v1 LocalStorage ve JSON kayıpsız okunur; eski veri yalnız okuma ve v2 k
   await selectPairAndMatch(page);
   const current = await readWorkspace(page);
   const { discoveries: _discoveries, ...rest } = current;
-  const legacy = { ...rest, version: 1 };
+  const legacy = {
+    ...rest,
+    version: 1,
+    matches: rest.matches.map((m) => ({
+      left: JSON.stringify(JSON.parse(m.left).slice(0, 4)),
+      right: JSON.stringify(JSON.parse(m.right).slice(0, 4)),
+    })),
+  };
   const raw = JSON.stringify(legacy);
   await page.evaluate((data) => {
     localStorage.removeItem("deliverylab.workspace.v2");
@@ -907,22 +914,297 @@ test("bozuk v2 eski v1 ile sessizce değiştirilmez", async ({ page }) => {
   await expect(page.locator(".discovery-record")).toHaveCount(1);
 });
 
-test("diğer platformun kaydı geçmişte kalsa da şube onayı geri alınabilir", async ({
+test("diğer platformun kaydı geçmişte kaldığında onay yeni adrese taşınmaz ve geçmişte korunur", async ({
   page,
 }) => {
   await changeAddress(page, "Test adresi · sentetik");
   await addDiscovery(page);
   await addDiscovery(page, "trendyol-go");
   await matchDiscoveries(page);
+  const atA = await readWorkspace(page);
   await changeAddress(page, "Sentetik B");
   await addDiscovery(page);
   await expect(page.locator(".discovery .restaurant-card")).toHaveCount(1);
   await expect(page.locator(".discovery .restaurant-card")).toContainText(
     "Diğer platform: Doğrulanmadı",
   );
+  await expect(
+    page.getByRole("button", {
+      name: "Şube eşleştirmesini geri al",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  expect((await readWorkspace(page)).matches).toEqual(atA.matches);
+  expect((await readWorkspace(page)).discoveries).toHaveLength(3);
+});
+
+test("A adresinin şube onayı B adresindeki aynı adları birleştirmez; her onay ayrı geri alınır", async ({
+  page,
+}) => {
+  await setupWorkspace(page);
+  await addObservation(page, "yemeksepeti", "200");
+  await addObservation(page, "trendyol-go", "180");
+  await selectPairAndMatch(page);
+  const atA = await readWorkspace(page);
+  await changeAddress(page, "Sentetik B");
+  await addObservation(page, "yemeksepeti", "200");
+  await addObservation(page, "trendyol-go", "180");
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(2);
+  await expect(page.locator(".winner")).toHaveCount(0);
+  expect((await readWorkspace(page)).matches).toEqual(atA.matches);
+  await selectPairAndMatch(page);
+  await expect(page.locator(".winner .total")).toContainText("205,00");
+  expect((await readWorkspace(page)).matches).toHaveLength(2);
   await page
     .getByRole("button", { name: "Şube eşleştirmesini geri al", exact: true })
     .click();
-  expect((await readWorkspace(page)).matches).toEqual([]);
-  expect((await readWorkspace(page)).discoveries).toHaveLength(3);
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(2);
+  await expect(page.locator(".winner")).toHaveCount(0);
+  const after = await readWorkspace(page);
+  expect(after.matches).toEqual(atA.matches);
+  expect(after.observations.slice(0, 2)).toEqual(atA.observations);
+  await page.reload();
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(2);
+  expect(await readWorkspace(page)).toEqual(after);
+});
+
+test("geçerli dosyadan sonra hatalı JSON seçilirse eski içe aktarma onayı kalmaz", async ({
+  page,
+}) => {
+  await setupWorkspace(page);
+  await addDiscovery(page);
+  const before = await readWorkspace(page);
+  await page.getByLabel("JSON içe aktar", { exact: true }).setInputFiles({
+    name: "synthetic-valid.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(before)),
+  });
+  await expect(
+    page.getByRole("heading", { name: "İçe aktarımı kontrol edin" }),
+  ).toBeVisible();
+  await page.getByLabel("JSON içe aktar", { exact: true }).setInputFiles({
+    name: "synthetic-invalid.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("{"),
+  });
+  await expect(
+    page.getByRole("status").filter({ hasText: "Mevcut kayıtlar korundu" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Kayıtları değiştir ve içe aktar",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  expect(await readWorkspace(page)).toEqual(before);
+});
+
+test("eski sekmenin kaydı diğer sekmedeki yeni veriyi sessizce ezmez", async ({
+  page,
+  context,
+}) => {
+  await context.route("**/*", (route) =>
+    ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname)
+      ? route.continue()
+      : route.abort(),
+  );
+  await setupWorkspace(page);
+  await addDiscovery(page);
+  const other = await context.newPage();
+  await other.goto("/");
+  await expect(other.locator(".discovery-record")).toHaveCount(1);
+  await addDiscovery(page, "trendyol-go");
+  const latest = await readWorkspace(page);
+  await addDiscovery(other, "yemeksepeti", true);
+  expect(await readWorkspace(page)).toEqual(latest);
+  await expect(other.getByRole("alert")).toContainText("Başka sekmede");
+  // The conflicting edit remains exportable in that tab; disk keeps the newer data.
+  await expect(other.locator(".discovery-record")).toHaveCount(2);
+  const downloadPromise = other.waitForEvent("download");
+  await other
+    .getByRole("button", { name: "JSON dışa aktar ↓", exact: true })
+    .click();
+  const download = await downloadPromise;
+  const path = test.info().outputPath("synthetic-conflicting-tab.json");
+  await download.saveAs(path);
+  const session = JSON.parse(await readFile(path, "utf8")) as Workspace;
+  expect(session.discoveries).toHaveLength(2);
+  expect(session.discoveries[1].deliveryStatus).toBe("confirmed");
+  expect(latest.discoveries[1].platform).toBe("trendyol-go");
+  await other.close();
+});
+
+test("JSON boyut, kayıt sayısı ve kaynak hatalarında mevcut kayıtlar korunur", async ({
+  page,
+}) => {
+  await setupWorkspace(page);
+  await addDiscovery(page);
+  const before = await readWorkspace(page);
+  const inputs = [
+    Buffer.alloc(1_000_001, " "),
+    Buffer.from(
+      JSON.stringify({
+        ...before,
+        discoveries: Array.from({ length: 501 }, (_, i) => ({
+          ...before.discoveries[0],
+          id: `synthetic-${i}`,
+        })),
+      }),
+    ),
+    ...["LIVE", "DEMO"].map((source) =>
+      Buffer.from(
+        JSON.stringify({
+          ...before,
+          discoveries: [{ ...before.discoveries[0], source }],
+        }),
+      ),
+    ),
+    Buffer.from(JSON.stringify({ ...before, observations: "broken" })),
+  ];
+  for (const buffer of inputs) {
+    await page
+      .getByLabel("JSON içe aktar", { exact: true })
+      .setInputFiles({
+        name: "synthetic-invalid.json",
+        mimeType: "application/json",
+        buffer,
+      });
+    await expect(
+      page.getByRole("status").filter({ hasText: "Mevcut kayıtlar korundu" }),
+    ).toBeVisible();
+    await expect(page.locator(".import-review")).toHaveCount(0);
+    expect(await readWorkspace(page)).toEqual(before);
+  }
+});
+
+test("depolama kotası hatasında disk korunur ve yeni oturum verisi dışa aktarılabilir", async ({
+  page,
+}) => {
+  await setupWorkspace(page);
+  await addDiscovery(page);
+  const before = await readWorkspace(page);
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === "deliverylab.workspace.v2")
+        throw new DOMException("Synthetic quota", "QuotaExceededError");
+      return original.call(this, key, value);
+    };
+  });
+  await addDiscovery(page, "trendyol-go");
+  await expect(page.getByRole("alert")).toContainText("Depolama dolu");
+  expect(await readWorkspace(page)).toEqual(before);
+  const pending = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "JSON dışa aktar ↓", exact: true })
+    .click();
+  const download = await pending,
+    path = test.info().outputPath("synthetic-quota.json");
+  await download.saveAs(path);
+  const exported = JSON.parse(await readFile(path, "utf8")) as Workspace;
+  expect(exported.discoveries).toHaveLength(2);
+  expect(exported.discoveries[0]).toEqual(before.discoveries[0]);
+  await page.reload();
+  expect(await readWorkspace(page)).toEqual(before);
+  await expect(page.locator(".discovery-record")).toHaveCount(1);
+});
+
+test("belirsiz eski v2 şube onayı saklanır ve yalnız yeni açık onay uygulanır", async ({
+  page,
+}) => {
+  await changeAddress(page, "Sentetik A");
+  await addDiscovery(page);
+  await addDiscovery(page, "trendyol-go");
+  await matchDiscoveries(page);
+  await changeAddress(page, "Sentetik B");
+  await addDiscovery(page);
+  await addDiscovery(page, "trendyol-go");
+  const before = await readWorkspace(page);
+  const legacyMatches = before.matches.map((m) => ({
+    left: JSON.stringify(JSON.parse(m.left).slice(0, 4)),
+    right: JSON.stringify(JSON.parse(m.right).slice(0, 4)),
+  }));
+  const raw = JSON.stringify({ ...before, matches: legacyMatches });
+  await page.evaluate(
+    (raw) => localStorage.setItem("deliverylab.workspace.v2", raw),
+    raw,
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Adres kapsamı belirsiz" }),
+  ).toBeVisible();
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(2);
+  expect(
+    await page.evaluate(() => localStorage.getItem("deliverylab.workspace.v2")),
+  ).toBe(raw);
+  await page
+    .getByText("Fiyat olmadan da şube eşleştirin", { exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Birinci şube", exact: true })
+    .selectOption(branchKey(before.discoveries[2]));
+  await page
+    .getByRole("combobox", { name: "İkinci şube", exact: true })
+    .selectOption(branchKey(before.discoveries[3]));
+  await page
+    .getByLabel(
+      "Seçtiğim iki kaydın aynı fiziksel şube olduğunu ayrıca kontrol ettim.",
+    )
+    .check();
+  await page
+    .getByRole("button", { name: "Şube onayını kaydet", exact: true })
+    .click();
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(1);
+  const after = await readWorkspace(page);
+  expect(after.discoveries).toEqual(before.discoveries);
+  expect(after.matches[0]).toEqual({ ...legacyMatches[0], unscoped: true });
+  expect(after.matches).toHaveLength(2);
+  await page.reload();
+  expect(await readWorkspace(page)).toEqual(after);
+  await expect(page.locator(".discovery .restaurant-card")).toHaveCount(1);
+});
+
+test("yavaş okunan önceki JSON son seçilen hatalı dosyanın önüne geçmez", async ({
+  page,
+}) => {
+  await setupWorkspace(page);
+  const before = await readWorkspace(page);
+  await page.evaluate(() => {
+    const original = File.prototype.text;
+    File.prototype.text = function () {
+      if (this.name !== "synthetic-slow.json") return original.call(this);
+      return new Promise<string>((resolve) => {
+        (
+          window as typeof window & { releaseImport: () => void }
+        ).releaseImport = () => {
+          void original.call(this).then(resolve);
+        };
+      });
+    };
+  });
+  await page
+    .getByLabel("JSON içe aktar", { exact: true })
+    .setInputFiles({
+      name: "synthetic-slow.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(before)),
+    });
+  await page.waitForFunction(() => "releaseImport" in window);
+  await page
+    .getByLabel("JSON içe aktar", { exact: true })
+    .setInputFiles({
+      name: "synthetic-invalid.json",
+      mimeType: "application/json",
+      buffer: Buffer.from("{"),
+    });
+  await expect(
+    page.getByRole("status").filter({ hasText: "Mevcut kayıtlar korundu" }),
+  ).toBeVisible();
+  await page.evaluate(async () => {
+    (window as typeof window & { releaseImport: () => void }).releaseImport();
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+  });
+  await expect(page.locator(".import-review")).toHaveCount(0);
+  expect(await readWorkspace(page)).toEqual(before);
 });

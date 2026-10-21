@@ -2,14 +2,18 @@ import {
   MAX_MONEY,
   PLATFORMS,
   branchKey,
+  legacyBranchKey,
+  sameDeliveryContext,
   safeSourceUrl,
   emptyWorkspace,
 } from "./model";
 import type {
   BasketItem,
+  BranchMatch,
   DeliveryContext,
   DiscoveryObservation,
   Observation,
+  RestaurantRecord,
   Source,
   Workspace,
 } from "./model";
@@ -255,25 +259,63 @@ export function validateWorkspace(
   if (new Set(records.map((r) => r.id)).size !== records.length)
     fail("Tekrarlanan gözlem kimliği.");
   const keys = new Map(records.map((r) => [branchKey(r), r]));
+  const legacy = new Map<string, RestaurantRecord[]>();
+  for (const record of keys.values()) {
+    const key = legacyBranchKey(record);
+    legacy.set(key, [...(legacy.get(key) ?? []), record]);
+  }
   const used = new Set<string>();
-  const matches = list(o.matches, 250).map((value) => {
-    const m = object(value, ["left", "right"]);
-    const left = text(m.left, 1500),
-      right = text(m.right, 1500);
+  const matches = list(o.matches, 250).map((value): BranchMatch => {
+    const hasFlag =
+      !!value && typeof value === "object" && Object.hasOwn(value, "unscoped");
+    const m = object(value, [
+      "left",
+      "right",
+      ...(hasFlag ? ["unscoped"] : []),
+    ]);
+    if (hasFlag && m.unscoped !== true) fail("Geçersiz şube onay kapsamı.");
+    // Escaped names plus the full address scope can exceed the old key length.
+    let left = text(m.left, 6000),
+      right = text(m.right, 6000);
     const a = keys.get(left),
       b = keys.get(right);
+    let unscoped = false;
+    if (a && b) {
+      if (hasFlag || !sameDeliveryContext(a.context, b.context))
+        fail("Geçersiz veya çelişen şube eşleştirmesi.");
+    } else {
+      const leftRecords = legacy.get(left),
+        rightRecords = legacy.get(right);
+      if (!leftRecords || !rightRecords)
+        fail("Geçersiz veya çelişen şube eşleştirmesi.");
+      const pairs = leftRecords.flatMap((a) =>
+        rightRecords
+          .filter((b) => sameDeliveryContext(a.context, b.context))
+          .map((b) => ({ a, b })),
+      );
+      if (!hasFlag && pairs.length === 1) {
+        left = branchKey(pairs[0].a);
+        right = branchKey(pairs[0].b);
+      } else {
+        // Never infer a scope from the active address or array order. Once
+        // ambiguous, keep the original evidence inert even if records are deleted.
+        unscoped = true;
+      }
+    }
+    const first = keys.get(left) ?? legacy.get(left)?.[0];
+    const second = keys.get(right) ?? legacy.get(right)?.[0];
     if (
-      !a ||
-      !b ||
-      a.platform === b.platform ||
-      a.source !== b.source ||
+      !first ||
+      !second ||
+      first.platform === second.platform ||
+      first.source !== second.source ||
       used.has(left) ||
       used.has(right)
     )
       fail("Geçersiz veya çelişen şube eşleştirmesi.");
     used.add(left);
     used.add(right);
-    return { left, right };
+    return { left, right, ...(unscoped ? { unscoped: true as const } : {}) };
   });
   return {
     version: 2,

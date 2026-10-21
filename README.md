@@ -147,19 +147,43 @@ karışmaz, kalıcı kaydedilmez ve canlı erişim hatasında otomatik açılmaz
   sepetli kayıtları keşifte kalır, gerekçeleri görünür ve kazanan olamaz.
 - Şubeler ad benzerliğiyle birleştirilmez. Kayıt bulunmaması, platformda restoran
   bulunmadığı iddiası oluşturmaz. Arama ve platform filtresi yalnız yerel kayıtları tarar.
+- Şube onayı verildiği adres revizyonu ve adres içeriğiyle sınırlıdır. A adresinin
+  onayı B'de veya A → B → A dönüşünde yeni kayıtlara taşınmaz. Yeni adreste açık
+  onay gerekir; geçmiş kayıtlar ve onayları saklanır. Farklı fiziksel şubeleri
+  ayırt etmek için şube açıklamalarını da farklı ve doğru girin.
 
 ## Verinin saklanması ve JSON
 
 MANUAL çalışma alanının JSON sürümü **2**; LocalStorage anahtarı
 `deliverylab.workspace.v2`'dir. v2 yoksa geçerli `deliverylab.workspace.v1`
-kayıtları okunur; fiyatlar, bağlamlar ve şube eşleştirmeleri aynen korunur,
+kayıtları okunur; fiyatlar, bağlamlar ve şube eşleştirme kayıtları korunur,
 keşif listesi boş başlar. Okuma depolamayı değiştirmez. İlk başarılı kayıtta v2
 yazılır, eski v1 anahtarı yedek olarak bırakılır. v2 varsa önceliklidir;
 bozuksa v1'e sessizce dönülmez. Eski uygulama sürümleri v2'yi okuyamaz.
 
+Faz 1E, eski v1/v2 şube onaylarını adres kapsamına uyarlar. İki şube için tek
+ortak adres bağlamı varsa onay o bağlama taşınır. Birden fazla veya sıfır ortak
+bağlam varsa eski anahtarlar `unscoped: true` ile korunur ve uygulanmaz;
+uygulama yeniden açık onay ister. Kayıt sayısı azalsa bile bu onaylar kendiliğinden
+canlanmaz. Okuma ham depolamayı değiştirmez; dönüşüm ilk başarılı kayıtta yazılır.
+JSON sürümü ve v2 depolama anahtarı değişmedi; yeni onay biçimini Faz 1E öncesi
+uygulamalar okuyamaz. Eski sürüme dönmeden önce JSON yedeği alın.
+
 Veriler sunucuya gönderilmez; aynı tarayıcı/origin altında kalır.
 Yerel depolama şifreli kasa değildir. Depolama hatası görünür şekilde bildirilir;
 bozuk kayıt sessizce ezilmez, yeni veriler oturumda kalır ve dışa aktarılabilir.
+
+Başka sekme kaydı değiştirmişse eski sekmenin sonraki kaydı depolamanın üzerine
+yazılmaz; uyarı gösterilir ve o sekmenin değişiklikleri dışa aktarılabilir kalır.
+Önce JSON yedeği alın, sonra güncel kaydı görmek için yenileyin. Otomatik sekme
+senkronizasyonu/birleştirme yoktur; aynı anda yazma için atomik kilit sağlanmaz.
+[Web Storage standardı da kilit varsayılmamasını belirtir](https://html.spec.whatwg.org/multipage/webstorage.html#introduction).
+Güvenli çalışma sınırı tek sekmede düzenlemedir. Açık onaylı “Yerel depolamayı
+bu oturumla değiştir” işlemi mevcut depolamayı değiştirdiği için diğer sekmenin
+kayıtlarını da değiştirebilir.
+
+Yeni bir JSON dosyası seçmek önceki içe aktarma onayını kaldırır. Hatalı dosya
+veya önceki dosyanın geç tamamlanan okuması eski onayı geri getirmez.
 
 JSON dışa aktarımı adres ve gözlemleri içerir; kişisel dosyaları Git'e koymayın.
 `local-data/` ve `deliverylab-export*.json` Git dışında tutulur. İçe aktarma en fazla

@@ -75,6 +75,8 @@ export interface Observation extends RestaurantRecord {
 export interface BranchMatch {
   left: string;
   right: string;
+  // Preserved legacy evidence whose address scope cannot be established.
+  unscoped?: true;
 }
 export interface Workspace {
   version: 2;
@@ -102,12 +104,24 @@ export function sameDeliveryContext(
   // A -> B -> A creates a new revision; never revive a previous observation.
   return a.id === b.id && sameAddress(a, b);
 }
+export function legacyBranchKey(o: RestaurantRecord): string {
+  return JSON.stringify([
+    o.source,
+    o.platform,
+    normalize(o.restaurant),
+    normalize(o.branch),
+  ]);
+}
 export function branchKey(o: RestaurantRecord): string {
   return JSON.stringify([
     o.source,
     o.platform,
     normalize(o.restaurant),
     normalize(o.branch),
+    o.context.id,
+    normalize(o.context.label),
+    o.context.latitude,
+    o.context.longitude,
   ]);
 }
 export function safeSourceUrl(value: string, platform: Platform): boolean {

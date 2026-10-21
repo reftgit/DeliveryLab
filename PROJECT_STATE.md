@@ -1,11 +1,12 @@
 # DeliveryLab — Doğrulanmış proje durumu
 
-Son kayıt tarihi: 2026-10-18 (Europe/Istanbul).
+Son kayıt tarihi: 2026-10-21 (Europe/Istanbul).
 
 ## Aşama ve mevcut hedef
 
-- Aşama: Faz 1D GitHub Actions test altyapısı gerçek başarılı koşumla doğrulandı.
-  Faz 1C sepetsiz MANUAL keşif ve v2 kayıt modeli korunur.
+- Aşama: Faz 1E kritik doğruluk/dayanıklılık testleri ve kanıtlanan hataların
+  düzeltmeleri yerelde doğrulandı; bu fazın GitHub koşumu henüz bekleniyor.
+  Sepetsiz MANUAL keşif ve v2 kayıt modeli korunur.
 - Sentetik testler kullanıcı bilgisayarından bağımsız çalışır ve GitHub'dan
   incelenebilir. Gerçek saha denemesi ve canlı entegrasyon henüz yapılmadı.
 - React/TypeScript/Vite uygulaması, LocalStorage, JSON aktarımı ve otomatik
@@ -14,7 +15,7 @@ Son kayıt tarihi: 2026-10-18 (Europe/Istanbul).
 | Kabul alanı | Durum | Kanıt / sınır |
 | --- | --- | --- |
 | LOCAL_APP | PASS | Temiz kurulum, build, localhost HTTP 200, masaüstü/dar ekran akışları |
-| GITHUB_ACTIONS_CI | PASS | [39112050564](https://github.com/reftgit/DeliveryLab/actions/runs/39112050564), 5973a75, completed/success; 109 birim + 50 E2E, build başarılı |
+| GITHUB_ACTIONS_CI | NOT RUN — Faz 1E | Faz 1D başarılı koşumları aşağıda tarihsel kanıttır; yeni commit için push sonrası sonuç beklenecek |
 | LIVE_DISCOVERY | BLOCKED | İki sağlayıcıdan aynı adres için yetkili gerçek keşif yapılmadı |
 | LIVE_COMPARISON | BLOCKED | İki sağlayıcıdan karşılaştırılabilir canlı sepet alınmadı |
 | MANUAL_COMPARISON | PASS | Manuel giriş ve matematiksel akış sentetik QA girdileriyle geçti; iki gerçek gözlemle saha kontrolü NOT RUN |
@@ -116,6 +117,72 @@ workflow'u tetikler; en güncel HEAD/run durumunu GitHub'dan ayrıca kontrol edi
 - `docs/FEASIBILITY.md`: tarihli, kaynaklı platform erişim değerlendirmesi.
 - `docs/PILOT_TEST.md`: gerçek gözlemler için uygulanabilir adımlar, boş kontrol
   şablonları; sepetsiz keşif ve fiyat senaryoları, otomatik erişimden ayrı sonuçlar.
+
+## Faz 1E kritik doğruluk ve dayanıklılık kanıtları
+
+Başlangıç: `0caa01c9968b6a9108830ba210f4bd3082e80928`, `main`.
+`git fetch origin` sonrası HEAD/`origin/main` aynıydı (0/0). Yalnız `.vscode/`
+izlenmiyordu ve SHA-256 değeri kurulum kaydındakiyle aynıydı.
+
+Önce eklenen testler, uygulama değiştirilmeden hata üretti:
+
+- `npm test -- src/domain/resilience.test.ts`: ilk 44 yeni testin 34'ü geçti,
+  10'u adresler arası onay taşınması/yanlış birleştirme ve eski onay kapsamı
+  nedeniyle başarısız oldu. Fiyat sınırı testlerinde hata bulunmadı.
+- `npm run test:e2e -- --project=desktop --grep 'A adresinin|geçerli dosyadan|eski sekmenin'`:
+  3/3 başarısız; B adresinde iki şube tek kart oldu, hatalı dosya sonrası eski
+  içe aktarma onayı kaldı, eski sekme diğer sekmenin yeni keşfini ezdi.
+- `npm run test:e2e -- --project=desktop --grep 'yavaş okunan'`: 1 başarısız;
+  geç tamamlanan önceki dosya yeni hatalı seçimden sonra tekrar onaya çıktı.
+  Hata screenshot/trace dosyaları test çıktılarıydı; Git'e alınmadı.
+
+Kanıtlanan hatalar için sınırlı düzeltmeler:
+
+1. Şube anahtarı adres revizyonu, normalize etiket ve koordinatları da içerir.
+   Eski A onayı B veya A → B → A yeni revizyonunu birleştirmez, kazanan üretmez.
+   Aynı adreste fiyat/keşif birlikteliği ve onay/geri alma korunur. Yeni eşleştirme
+   farklı adresler arasında ise doğrulama reddeder.
+2. v1/v2 eski dört parçalı onaylar için veri uyarlaması vardır. Tek ortak bağlam
+   belirlenirse yalnız o bağlama taşınır; sıfır/çok ortak bağlam varsa eski
+   anahtarlar `unscoped: true` ile saklanır ve kullanıcıya yeniden onay gerektiği
+   gösterilir. Kayıt azalınca kendiliğinden canlanmaz. Gözlemler, fiyatlar, kimlikler
+   ve geçmiş silinmez; ham LocalStorage okuma sırasında değişmez. JSON sürümü ve
+   depolama anahtarı v2 kalır; yeni onay biçimini eski uygulamalar okuyamaz.
+3. Dosya seçiminde eski içe aktarma önizlemesi kaldırılır; yalnız en son dosya
+   okumasının sonucu onaya çıkabilir. Hatalı dosya mevcut veriyi değiştirmez.
+4. Kayıttan önce ham depolama son bilinen değerle karşılaştırılır. Başka sekmenin
+   yazdığı veri korunur; çakışan düzenleme oturumda/dışa aktarılabilir kalır.
+   Bu atomik kilit veya otomatik birleştirme değildir; aşağıdaki sınırlar geçerlidir.
+
+Yeni test sayısı: **52 birim testi** (22 şube/adres, 17 fiyat, 13 veri sınırı)
+ve **7 E2E senaryosu × 2 viewport = 14 E2E testi**; toplam 66 yeni test koşumu.
+Önceki 109 birim testi ve 25 E2E senaryosu korundu. Önceki adresler arası onayı
+geri alma senaryosunun beklentisi, onayın geçmişte korunup B'de uygulanmamasına
+düzeltildi; v1 tarayıcı fixture'ı gerçek eski dört parçalı anahtarları kullanır.
+
+Yerel sonuçlar: macOS, Node.js 26.8.1, npm 11.19.0, geçici Chrome profilleri.
+
+- PASS — `npm ci`: temiz kurulum, 0 güvenlik açığı. Opsiyonel fsevents script
+  uyarısı için güvenlik ayarı değiştirilmedi; paket yükseltilmedi.
+- PASS — `npm test`: **161/161**, dört dosya; son turda başarısız test yok.
+- PASS — `npm run build`: TypeScript + Vite; JS 272.83 kB (gzip 83.29 kB).
+- PASS — `npm run test:e2e`: **64/64**, 36.1 saniye, masaüstü 32 + dar ekran 32.
+  Boş başlangıç, sepetsiz keşif, onay/geri alma, geçmiş, eskime, fiyat, JSON ve
+  dış HTTP engeli korundu. Yeni testlerde v1/v2 onay dönüşümü, belirsiz onaylar,
+  1 MB/500 kayıt/kaynak reddinde veri koruma, kota hatası ve iki sekme sınandı.
+- Fiyat kanıtı: 0/bilinmeyen ücret, çoklu/yinelenen indirim, iki minimum temeli
+  için eşitlik ve 1 kuruş fark, 100.000.000 kuruş üst sınırı, güvenli tam sayı
+  dışındaki girdiler, eşit toplam, porsiyon/seçenek ve kaynak toplamı farkları.
+- Veri kanıtı: UTF-8 olarak tam 1.000.000 bayt kabul, +1 bayt ret; 500 fiyat,
+  250+250 karma veya 500 keşif kabul, 501 ret. Bozuk v2 v1'e düşmedi; LIVE/DEMO
+  içe aktarımı reddedildi. Kota ve sekme hatasında diskteki veri ile dışa
+  aktarılabilir oturum verisi ayrı ayrı doğrulandı.
+- Mevcut 5173 kullanıcı sunucusu korunarak kullanıldı; yeni kalıcı sunucu yok.
+  Testler yalnız geçici tarayıcı profilleri ve sentetik girdiler kullandı.
+
+Gerçek GitHub Actions Faz 1E sonucu: **NOT RUN**; push sonrası yeni SHA'nın
+tamamlanmış koşumu ayrıca kontrol edilecek. Önceki fazın PASS'i bu faza taşınmaz.
+LIVE_DISCOVERY ve LIVE_COMPARISON **BLOCKED**; gerçek saha/cihaz/ödeme NOT RUN.
 
 ## Faz 1D CI uygulaması ve doğrulama kanıtları
 
@@ -351,7 +418,15 @@ sağlayıcı kullanılmadı.
 - Farklı platform ürün adları otomatik eşdeğer sayılmaz; şube eşleştirmesi kullanıcı
   beyanıdır. Karmaşık kampanyalar ve ürün toplamını aşan indirimler desteklenmez.
 - LocalStorage tarayıcıya/origin'e bağlıdır, şifreli kasa veya yedek değildir;
-  çok sekmeli eşzamanlı düzenleme için çatışma çözümü yok. JSON kişisel bağlam içerebilir.
+  çok sekmeli otomatik birleştirme yok. Faz 1E sırayla yapılan eski sekme yazısını
+  engeller; okuma-kontrol-yazma atomik olmadığından tam eşzamanlı yarış için
+  garanti vermez. Düzenleme tek sekmede yapılmalıdır; dış değişiklikler ekrana
+  kendiliğinden gelmez. Çakışan oturum JSON'a aktarılıp sonra yenilenmelidir.
+  Açık onaylı depolamayı değiştirme diğer sekmenin verisini de değiştirir.
+  JSON kişisel bağlam içerebilir.
+- Belirsiz eski şube onayı saklanır ama uygulanmaz; yeniden açık onay gerekir.
+  Aynı adres içindeki fiziksel şube ayrımı hâlâ kullanıcının doğru restoran/şube
+  açıklamasına bağlıdır; sağlayıcıdan bağımsız gerçek şube kimliği doğrulanmaz.
 - Eski uygulama sürümleri v2 JSON'u okuyamaz. Korunan v1 anahtarı v2 kayıtlarından
   sonra güncellenmez; tam güncel yedek uygulamanın v2 JSON dışa aktarımıdır.
   Teslimat için ek açıklama istemek beyanın bağımsız doğrulandığı anlamına gelmez.

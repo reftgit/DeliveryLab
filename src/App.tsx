@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { ContextEditor } from "./components/Editors";
 import { ObservationForm } from "./components/ObservationForm";
@@ -26,6 +26,7 @@ import {
 import type { Observation, Platform, Workspace } from "./domain/model";
 import {
   exportWorkspace,
+  LEGACY_STORAGE_KEY,
   MAX_IMPORT_BYTES,
   parseImport,
   readStoredWorkspace,
@@ -33,13 +34,28 @@ import {
   validateWorkspace,
 } from "./domain/storage";
 
+function localSnapshot() {
+  const current = localStorage.getItem(STORAGE_KEY);
+  return [
+    current,
+    current === null ? localStorage.getItem(LEGACY_STORAGE_KEY) : null,
+  ] as const;
+}
 function loadLocal() {
   try {
-    return { ...readStoredWorkspace(localStorage), error: "" };
+    const snapshot = localSnapshot();
+    return {
+      ...readStoredWorkspace({
+        getItem: (key) => snapshot[key === STORAGE_KEY ? 0 : 1],
+      }),
+      snapshot: JSON.stringify(snapshot),
+      error: "",
+    };
   } catch {
     return {
       workspace: emptyWorkspace(),
       migrated: false,
+      snapshot: null,
       error:
         "Yerel kayıt okunamadı. Mevcut depolamanın üzerine yazılmadı; yeni değişiklikler yalnızca bu oturumda tutulacak.",
     };
@@ -47,6 +63,7 @@ function loadLocal() {
 }
 export default function App() {
   const [initial] = useState(loadLocal);
+  const savedSnapshot = useRef(initial.snapshot);
   const [manual, setManual] = useState(initial.workspace);
   const [storageError, setStorageError] = useState(initial.error);
   const [demo, setDemo] = useState<Workspace | null>(null);
@@ -66,6 +83,7 @@ export default function App() {
       : "",
   );
   const [pendingImport, setPendingImport] = useState<Workspace | null>(null);
+  const importRequest = useRef(0);
   const [editorVersion, setEditorVersion] = useState(0);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -120,7 +138,14 @@ export default function App() {
         setManual(valid);
         if (!storageError) {
           try {
-            localStorage.setItem(STORAGE_KEY, encoded);
+            if (JSON.stringify(localSnapshot()) !== savedSnapshot.current) {
+              setStorageError(
+                "Başka sekmede yerel kayıt değişti. Yeni kayıtların üzerine yazılmadı; bu sekmedeki değişiklikler yalnız oturumda tutuluyor. Önce JSON dışa aktarın, sonra güncel kayıtları görmek için sayfayı yenileyin.",
+              );
+            } else {
+              localStorage.setItem(STORAGE_KEY, encoded);
+              savedSnapshot.current = JSON.stringify([encoded, null]);
+            }
           } catch {
             setStorageError(
               "Depolama dolu veya kullanılamıyor. Veriler bu oturumda tutuluyor; JSON olarak dışa aktarın.",
@@ -173,15 +198,20 @@ export default function App() {
     }
   }
   async function importData(e: ChangeEvent<HTMLInputElement>) {
+    const request = ++importRequest.current;
     const file = e.target.files?.[0];
     e.target.value = "";
+    setPendingImport(null);
     if (!file) return;
     try {
       if (file.size > MAX_IMPORT_BYTES)
         throw new Error("Dosya en fazla 1 MB olabilir.");
-      setPendingImport(parseImport(await file.text()));
+      const raw = await file.text();
+      if (request !== importRequest.current) return;
+      setPendingImport(parseImport(raw));
       setNotice("");
     } catch (e) {
+      if (request !== importRequest.current) return;
       setNotice(
         (e instanceof Error ? e.message : "Dosya okunamadı.") +
           " Mevcut kayıtlar korundu.",
@@ -273,11 +303,13 @@ export default function App() {
               onClick={() => {
                 if (
                   window.confirm(
-                    "Okunamayan yerel kaydı silip bu oturumdaki kayıtlarla değiştirmek istiyor musunuz?",
+                    "Yerel depolamadaki kayıtları bu oturumdaki kayıtlarla değiştirmek istiyor musunuz? Diğer sekmelerin değişiklikleri kaybolabilir; önce JSON yedeği alın.",
                   )
                 ) {
                   try {
-                    localStorage.setItem(STORAGE_KEY, exportWorkspace(manual));
+                    const encoded = exportWorkspace(manual);
+                    localStorage.setItem(STORAGE_KEY, encoded);
+                    savedSnapshot.current = JSON.stringify([encoded, null]);
                     setStorageError("");
                   } catch {
                     setNotice(
@@ -302,6 +334,13 @@ export default function App() {
               ×
             </button>
           </div>
+        )}
+        {workspace.matches.some((m) => m.unscoped) && (
+          <p className="notice" role="status">
+            Adres kapsamı belirsiz eski şube onayları saklandı. Bu adresteki
+            şubeler için yeniden açık onay verin; eski onaylar otomatik
+            uygulanmaz.
+          </p>
         )}
         {pendingImport && (
           <section className="panel import-review">

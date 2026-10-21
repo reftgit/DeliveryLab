@@ -1,4 +1,9 @@
-import { FRESHNESS_MS, sameDeliveryContext, branchKey } from "./model";
+import {
+  FRESHNESS_MS,
+  sameDeliveryContext,
+  branchKey,
+  legacyBranchKey,
+} from "./model";
 import type { DeliveryContext, DiscoveryObservation, Workspace } from "./model";
 
 export function evaluateDiscovery(
@@ -23,7 +28,12 @@ export function evaluateDiscovery(
 export function removeRecord(workspace: Workspace, id: string): Workspace {
   const observations = workspace.observations.filter((o) => o.id !== id);
   const discoveries = workspace.discoveries.filter((o) => o.id !== id);
-  const remaining = new Set([...observations, ...discoveries].map(branchKey));
+  const remaining = new Set(
+    [...observations, ...discoveries].flatMap((r) => [
+      branchKey(r),
+      legacyBranchKey(r),
+    ]),
+  );
   return {
     ...workspace,
     observations,
