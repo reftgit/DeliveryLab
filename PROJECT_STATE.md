@@ -5,7 +5,7 @@ Son kayıt tarihi: 2026-10-21 (Europe/Istanbul).
 ## Aşama ve mevcut hedef
 
 - Aşama: Faz 1E kritik doğruluk/dayanıklılık testleri ve kanıtlanan hataların
-  düzeltmeleri yerelde doğrulandı; bu fazın GitHub koşumu henüz bekleniyor.
+  düzeltmeleri yerelde ve tamamlanmış başarılı GitHub koşumunda doğrulandı.
   Sepetsiz MANUAL keşif ve v2 kayıt modeli korunur.
 - Sentetik testler kullanıcı bilgisayarından bağımsız çalışır ve GitHub'dan
   incelenebilir. Gerçek saha denemesi ve canlı entegrasyon henüz yapılmadı.
@@ -15,7 +15,7 @@ Son kayıt tarihi: 2026-10-21 (Europe/Istanbul).
 | Kabul alanı | Durum | Kanıt / sınır |
 | --- | --- | --- |
 | LOCAL_APP | PASS | Temiz kurulum, build, localhost HTTP 200, masaüstü/dar ekran akışları |
-| GITHUB_ACTIONS_CI | NOT RUN — Faz 1E | Faz 1D başarılı koşumları aşağıda tarihsel kanıttır; yeni commit için push sonrası sonuç beklenecek |
+| GITHUB_ACTIONS_CI | PASS — Faz 1E | [39621664504](https://github.com/reftgit/DeliveryLab/actions/runs/39621664504), ed06a14, completed/success; 161 birim + 64 E2E ve build geçti |
 | LIVE_DISCOVERY | BLOCKED | İki sağlayıcıdan aynı adres için yetkili gerçek keşif yapılmadı |
 | LIVE_COMPARISON | BLOCKED | İki sağlayıcıdan karşılaştırılabilir canlı sepet alınmadı |
 | MANUAL_COMPARISON | PASS | Manuel giriş ve matematiksel akış sentetik QA girdileriyle geçti; iki gerçek gözlemle saha kontrolü NOT RUN |
@@ -124,6 +124,11 @@ Başlangıç: `0caa01c9968b6a9108830ba210f4bd3082e80928`, `main`.
 `git fetch origin` sonrası HEAD/`origin/main` aynıydı (0/0). Yalnız `.vscode/`
 izlenmiyordu ve SHA-256 değeri kurulum kaydındakiyle aynıydı.
 
+Uygulama commit'i: `ed06a145254556d3d673ee499a00365cbaef1379`
+(`test: harden branch matching and workspace resilience`). Normal push başarılı;
+uzak `refs/heads/main` bu SHA ile doğrulandı. Sonraki belge commit'i bu kanıtı
+kaydeder ve CI'ı yeniden tetikler; güncel HEAD/run GitHub'dan ayrıca kontrol edilir.
+
 Önce eklenen testler, uygulama değiştirilmeden hata üretti:
 
 - `npm test -- src/domain/resilience.test.ts`: ilk 44 yeni testin 34'ü geçti,
@@ -179,9 +184,27 @@ Yerel sonuçlar: macOS, Node.js 26.8.1, npm 11.19.0, geçici Chrome profilleri.
   aktarılabilir oturum verisi ayrı ayrı doğrulandı.
 - Mevcut 5173 kullanıcı sunucusu korunarak kullanıldı; yeni kalıcı sunucu yok.
   Testler yalnız geçici tarayıcı profilleri ve sentetik girdiler kullandı.
+- PASS — `git diff --check`, belge bağlantıları, diff/kapsam/gizli bilgi
+  kontrolleri ve `.vscode/settings.json` SHA-256 eşitliği. Bağımlılıklar, lockfile,
+  workflow, Playwright ayarları, AGENTS.md ve CLAUDE.md değişmedi.
 
-Gerçek GitHub Actions Faz 1E sonucu: **NOT RUN**; push sonrası yeni SHA'nın
-tamamlanmış koşumu ayrıca kontrol edilecek. Önceki fazın PASS'i bu faza taşınmaz.
+Gerçek GitHub Actions Faz 1E sonucu: **PASS**.
+
+- [Run 39621664504](https://github.com/reftgit/DeliveryLab/actions/runs/39621664504),
+  event `push`, `main`, SHA `ed06a145254556d3d673ee499a00365cbaef1379`.
+  API: `status: completed`, `conclusion: success`; 2026-10-21 15:01:19 UTC
+  (18:01:19 Europe/Istanbul) tamamlanma kaydı.
+- [İş ve günlükler](https://github.com/reftgit/DeliveryLab/actions/runs/39621664504/job/119296450702)
+  okundu: Ubuntu 24.04, Node.js 24.22.0, npm 11.19.1, Chrome 156.0.8078.47.
+- PASS — `npm ci`: 0 güvenlik açığı; `npm test`: **161/161**
+  (domain 66, context 17, discovery 26, resilience 52).
+- PASS — `npm run build` ve
+  `npx --no-install playwright install --with-deps chrome`.
+- PASS — `npm run test:e2e`: **64/64**, 1.2 dakika; masaüstü 32 + dar ekran 32.
+- Başarısız test yok. Artifact listesi boş; yalnız hata halinde yükleme adımı
+  beklenen şekilde `skipped`. Başarılı run, job ve adım sonuçları birlikte doğrulandı.
+- Ücretli servis, scraping, gerçek platform hesabı/API/ödeme veya deploy yok.
+
 LIVE_DISCOVERY ve LIVE_COMPARISON **BLOCKED**; gerçek saha/cihaz/ödeme NOT RUN.
 
 ## Faz 1D CI uygulaması ve doğrulama kanıtları
